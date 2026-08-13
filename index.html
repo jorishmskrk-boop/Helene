@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Hélène — Scouting Kamp AI</title>
+    <style>
+      /* Basisstijl voor scherm (16:9, kijkafstand 2 tot 5 meter) */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      html, body {
+        width: 100vw;
+        height: 100vh;
+        background-color: #06080e;
+        color: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden;
+        cursor: none; /* Muiscursor automatische verberging */
+      }
+
+      /* Hoofdcontainer van het scherm */
+      #mainAppContainer {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        padding: 3vh 4vw 6vh 4vw;
+      }
+
+      /* Subtiele verbindingsindicator rechtsboven op de TV */
+      #connectionIndicator {
+        display: none !important;
+      }
+
+      #statusDot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background-color: #e2e8f0;
+        transition: background-color 0.4s ease, box-shadow 0.4s ease;
+      }
+
+      #statusDot.online {
+        background-color: var(--accent-color, #38bdf8);
+        box-shadow: 0 0 12px var(--accent-color, #38bdf8);
+      }
+
+      #statusDot.connecting {
+        background-color: #eab308;
+        box-shadow: 0 0 10px #eab308;
+      }
+
+      #statusDot.offline {
+        background-color: #ef4444;
+        box-shadow: 0 0 10px #ef4444;
+      }
+
+      /* Zzz Slaapanimatie boven de ogen */
+      #zzzContainer {
+        position: absolute;
+        top: 8vh;
+        left: 56vw;
+        display: flex;
+        gap: 0.6rem;
+        z-index: 15;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+      }
+
+      #zzzContainer.active {
+        opacity: 1;
+      }
+
+      .zzz-letter {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-weight: 800;
+        color: var(--accent-color, #38bdf8);
+        text-shadow: 0 0 16px var(--accent-color, #38bdf8);
+        animation: floatZzz 3.2s infinite ease-in-out;
+        display: inline-block;
+        opacity: 0;
+      }
+
+      .zzz-letter:nth-child(1) {
+        animation-delay: 0s;
+        font-size: clamp(1.8rem, 2.5vw, 3rem);
+      }
+      .zzz-letter:nth-child(2) {
+        animation-delay: 0.9s;
+        font-size: clamp(2.4rem, 3.5vw, 4.2rem);
+      }
+      .zzz-letter:nth-child(3) {
+        animation-delay: 1.8s;
+        font-size: clamp(3.2rem, 4.8vw, 5.8rem);
+      }
+
+      @keyframes floatZzz {
+        0% {
+          opacity: 0;
+          transform: translate(0, 15px) scale(0.6);
+        }
+        35% {
+          opacity: 0.85;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(30px, -50px) scale(1.15);
+        }
+      }
+
+      /* SCOUTING FRANSE LELIE (FLEUR-DE-LIS) OGEN CONTAINER */
+      #scoutEyesContainer {
+        position: absolute;
+        top: 15vh;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: clamp(4rem, 12vw, 16rem);
+        z-index: 12;
+        pointer-events: none;
+      }
+
+      .eye-wrapper {
+        position: relative;
+        width: clamp(70px, 10vw, 130px);
+        height: clamp(84px, 12vw, 156px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transform-origin: center center;
+      }
+
+      .scout-eye-svg {
+        width: 100%;
+        height: 100%;
+        fill: var(--accent-color, #38bdf8);
+        filter: drop-shadow(0 0 18px var(--accent-color, #38bdf8));
+        transition: fill 0.3s ease, filter 0.3s ease;
+      }
+
+      /* LUISTER-OREN (Sound waves naast de ogen) VOOR OPTIE 1 */
+      .listening-ear {
+        display: flex;
+        align-items: center;
+        gap: clamp(6px, 1vw, 14px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s ease, transform 0.4s ease;
+      }
+
+      .listening-ear.left-ear {
+        flex-direction: row-reverse;
+      }
+
+      .listening-ear.right-ear {
+        flex-direction: row;
+      }
+
+      .ear-arc {
+        border-top: 5px solid var(--accent-color, #38bdf8);
+        border-bottom: 5px solid var(--accent-color, #38bdf8);
+        border-right: 5px solid var(--accent-color, #38bdf8);
+        border-left: none;
+        border-top-right-radius: 60px;
+        border-bottom-right-radius: 60px;
+        box-shadow: 0 0 18px var(--accent-color, #38bdf8);
+        opacity: 0.2;
+        transition: opacity 0.3s ease;
+      }
+
+      .left-ear .ear-arc {
+        border-top: 5px solid var(--accent-color, #38bdf8);
+        border-bottom: 5px solid var(--accent-color, #38bdf8);
+        border-left: 5px solid var(--accent-color, #38bdf8);
+        border-right: none;
+        border-top-left-radius: 60px;
+        border-bottom-left-radius: 60px;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+
+      .arc-1 {
+        width: clamp(12px, 1.8vw, 24px);
+        height: clamp(35px, 5vw, 65px);
+      }
+
+      .arc-2 {
+        width: clamp(20px, 2.8vw, 38px);
+        height: clamp(55px, 8vw, 100px);
+      }
+
+      .arc-3 {
+        width: clamp(28px, 3.8vw, 52px);
+        height: clamp(75px, 11vw, 135px);
+      }
+
+      /* Wanneer Hélène actief luistert (Optie 1) */
+      #scoutEyesContainer.listening .listening-ear {
+        opacity: 1;
+      }
+
+      #scoutEyesContainer.listening .left-ear .arc-1 {
+        animation: listenPulseLeft 1.2s infinite ease-in-out 0s;
+      }
+      #scoutEyesContainer.listening .left-ear .arc-2 {
+        animation: listenPulseLeft 1.2s infinite ease-in-out 0.2s;
+      }
+      #scoutEyesContainer.listening .left-ear .arc-3 {
+        animation: listenPulseLeft 1.2s infinite ease-in-out 0.4s;
+      }
+
+      #scoutEyesContainer.listening .right-ear .arc-1 {
+        animation: listenPulseRight 1.2s infinite ease-in-out 0s;
+      }
+      #scoutEyesContainer.listening .right-ear .arc-2 {
+        animation: listenPulseRight 1.2s infinite ease-in-out 0.2s;
+      }
+      #scoutEyesContainer.listening .right-ear .arc-3 {
+        animation: listenPulseRight 1.2s infinite ease-in-out 0.4s;
+      }
+
+      @keyframes listenPulseRight {
+        0% {
+          opacity: 0.25;
+          transform: scale(0.85) translateX(-4px);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.15) translateX(8px);
+          box-shadow: 0 0 28px var(--accent-color, #38bdf8), 0 0 12px #10b981;
+        }
+        100% {
+          opacity: 0.25;
+          transform: scale(0.85) translateX(-4px);
+        }
+      }
+
+      @keyframes listenPulseLeft {
+        0% {
+          opacity: 0.25;
+          transform: scale(0.85) translateX(4px);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.15) translateX(-8px);
+          box-shadow: 0 0 28px var(--accent-color, #38bdf8), 0 0 12px #10b981;
+        }
+        100% {
+          opacity: 0.25;
+          transform: scale(0.85) translateX(4px);
+        }
+      }
+
+      /* Intensief oplichten en pulseren van de ogen als Hélène luistert */
+      #scoutEyesContainer.listening .scout-eye-svg {
+        filter: drop-shadow(0 0 35px var(--accent-color, #38bdf8)) drop-shadow(0 0 20px #10b981);
+        animation: eyeListeningGlow 1.3s infinite ease-in-out alternate;
+      }
+
+      @keyframes eyeListeningGlow {
+        0% {
+          transform: scale(1.08);
+          filter: drop-shadow(0 0 25px var(--accent-color, #38bdf8));
+        }
+        100% {
+          transform: scale(1.22);
+          filter: drop-shadow(0 0 45px var(--accent-color, #38bdf8)) drop-shadow(0 0 25px #10b981);
+        }
+      }
+
+      /* Ogen animatiestaten */
+      .eye-wrapper.sleeping {
+        transform: scaleY(0.12) scaleX(1.05);
+        filter: opacity(0.5);
+        animation: sleepBreath 3.5s infinite ease-in-out alternate;
+      }
+
+      @keyframes sleepBreath {
+        0% {
+          transform: scaleY(0.1) scaleX(1.04) translateY(0px);
+          filter: opacity(0.4);
+        }
+        100% {
+          transform: scaleY(0.16) scaleX(1.08) translateY(4px);
+          filter: opacity(0.75);
+        }
+      }
+
+      .eye-wrapper.blink {
+        transform: scaleY(0.08) scaleX(1.1);
+      }
+
+      .eye-wrapper.listening {
+        transform: scale(1.18);
+        filter: opacity(1);
+      }
+
+      .eye-wrapper.speaking {
+        animation: eyeBounce 0.4s infinite alternate ease-in-out;
+        filter: opacity(1);
+      }
+
+      @keyframes eyeBounce {
+        0% { transform: translateY(0px) scale(1); }
+        100% { transform: translateY(-12px) scale(1.08); }
+      }
+
+      /* WENKBRAUWEN VOOR GEZICHTSUITDRUKKINGEN */
+      .eyebrow-svg {
+        position: absolute;
+        top: clamp(-26px, -3vw, -40px);
+        width: 100%;
+        height: clamp(20px, 2.8vw, 36px);
+        pointer-events: none;
+        filter: drop-shadow(0 0 10px var(--accent-color, #38bdf8));
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+        transform-origin: center bottom;
+      }
+
+      .left-eyebrow {
+        transform: translateY(0px) rotate(-3deg);
+      }
+      .right-eyebrow {
+        transform: translateY(0px) rotate(3deg);
+      }
+
+      /* SLAAPSTAND: Wenkbrauwen ontspannen en zakken */
+      .eye-wrapper.sleeping .eyebrow-svg {
+        transform: translateY(clamp(16px, 2vw, 26px)) scaleY(0.3);
+        opacity: 0.4;
+      }
+
+      /* LUISTERSTAND: Nieuwsgierig & Aandachtig opgetrokken wenkbrauwen */
+      .eye-wrapper.listening .left-eyebrow {
+        animation: eyebrowListenLeft 1.8s infinite ease-in-out;
+      }
+
+      .eye-wrapper.listening .right-eyebrow {
+        animation: eyebrowListenRight 1.8s infinite ease-in-out;
+      }
+
+      @keyframes eyebrowListenLeft {
+        0% {
+          transform: translateY(-12px) rotate(-10deg) scale(1.08);
+          filter: drop-shadow(0 0 16px var(--accent-color, #38bdf8)) drop-shadow(0 0 8px #10b981);
+        }
+        50% {
+          transform: translateY(-20px) rotate(-15deg) scale(1.15);
+          filter: drop-shadow(0 0 24px var(--accent-color, #38bdf8)) drop-shadow(0 0 14px #10b981);
+        }
+        100% {
+          transform: translateY(-12px) rotate(-10deg) scale(1.08);
+          filter: drop-shadow(0 0 16px var(--accent-color, #38bdf8)) drop-shadow(0 0 8px #10b981);
+        }
+      }
+
+      @keyframes eyebrowListenRight {
+        0% {
+          transform: translateY(-12px) rotate(10deg) scale(1.08);
+          filter: drop-shadow(0 0 16px var(--accent-color, #38bdf8)) drop-shadow(0 0 8px #10b981);
+        }
+        50% {
+          transform: translateY(-20px) rotate(15deg) scale(1.15);
+          filter: drop-shadow(0 0 24px var(--accent-color, #38bdf8)) drop-shadow(0 0 14px #10b981);
+        }
+        100% {
+          transform: translateY(-12px) rotate(10deg) scale(1.08);
+          filter: drop-shadow(0 0 16px var(--accent-color, #38bdf8)) drop-shadow(0 0 8px #10b981);
+        }
+      }
+
+      /* SPREEKSTAND: Levendig op en neer praten */
+      .eye-wrapper.speaking .left-eyebrow {
+        animation: eyebrowSpeakLeft 0.5s infinite alternate ease-in-out;
+      }
+
+      .eye-wrapper.speaking .right-eyebrow {
+        animation: eyebrowSpeakRight 0.5s infinite alternate ease-in-out;
+      }
+
+      @keyframes eyebrowSpeakLeft {
+        0% { transform: translateY(-4px) rotate(-4deg); }
+        100% { transform: translateY(-14px) rotate(-8deg); }
+      }
+
+      @keyframes eyebrowSpeakRight {
+        0% { transform: translateY(-4px) rotate(4deg); }
+        100% { transform: translateY(-14px) rotate(8deg); }
+      }
+
+      /* EMOTIESTAND: Happy / Enthousiast */
+      .eye-wrapper.happy .left-eyebrow {
+        transform: translateY(-18px) rotate(-14deg) scale(1.15);
+        filter: drop-shadow(0 0 20px #f59e0b) drop-shadow(0 0 10px var(--accent-color, #38bdf8));
+      }
+      .eye-wrapper.happy .right-eyebrow {
+        transform: translateY(-18px) rotate(14deg) scale(1.15);
+        filter: drop-shadow(0 0 20px #f59e0b) drop-shadow(0 0 10px var(--accent-color, #38bdf8));
+      }
+      .eye-wrapper.happy .scout-eye-svg {
+        transform: scale(1.14);
+        filter: drop-shadow(0 0 35px #f59e0b) drop-shadow(0 0 15px var(--accent-color, #38bdf8));
+      }
+
+      /* EMOTIESTAND: Thinking / Nadenken */
+      .eye-wrapper.thinking .left-eyebrow {
+        transform: translateY(-16px) rotate(-18deg) scale(1.08);
+      }
+      .eye-wrapper.thinking .right-eyebrow {
+        transform: translateY(-4px) rotate(2deg) scale(1.02);
+      }
+      .eye-wrapper.thinking .scout-eye-svg {
+        animation: eyeThinkingPulse 1.6s infinite ease-in-out alternate;
+      }
+      @keyframes eyeThinkingPulse {
+        0% { transform: rotate(-3deg) scale(1.02); }
+        100% { transform: rotate(3deg) scale(1.08); }
+      }
+
+      /* EMOTIESTAND: Puzzled / Vragend */
+      .eye-wrapper.puzzled .left-eyebrow {
+        transform: translateY(-22px) rotate(-22deg) scale(1.2);
+        filter: drop-shadow(0 0 16px #f43f5e);
+      }
+      .eye-wrapper.puzzled .right-eyebrow {
+        transform: translateY(4px) rotate(-6deg) scale(0.95);
+      }
+
+      /* Het gecentreerde Canvas voor de golfvorm */
+      #canvasContainer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 5;
+        pointer-events: none;
+      }
+
+      #waveformCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      /* Onderaan het scherm: Subtitels en Status instructies */
+      #bottomSection {
+        position: relative;
+        z-index: 10;
+        margin-top: auto;
+        width: 100%;
+        max-width: 90vw;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2vh;
+        transition: opacity 0.5s ease, transform 0.5s ease;
+      }
+
+      #bottomSection.sleeping {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px);
+      }
+
+      /* Grote leesbare subtitels voor buiten/rumoerige omgevingen */
+      #subtitles {
+        font-size: clamp(1.8rem, 2.4vw, 3.2rem);
+        font-weight: 500;
+        color: var(--accent-color, #38bdf8);
+        line-height: 1.3;
+        min-height: 4rem;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+        transition: opacity 0.3s ease, color 0.3s ease;
+      }
+
+      /* Grote status-instructie voor TV kijkafstand */
+      #statusText {
+        display: none !important;
+      }
+
+      /* Drukknop-indicator onderaan het scherm */
+      #talkArea {
+        cursor: pointer;
+        padding: 1.5vh 3vw;
+        border-radius: 20px;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+      }
+
+      #talkArea:active, #talkArea.active {
+        transform: scale(0.98);
+      }
+
+      /* Foutmelding / Geen internet overlay */
+      #errorBanner {
+        display: none;
+        position: absolute;
+        bottom: 12vh;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(239, 68, 68, 0.15);
+        border: 2px solid #ef4444;
+        color: #f8fafc;
+        padding: 1.5rem 3rem;
+        border-radius: 16px;
+        font-size: 1.8rem;
+        font-weight: 600;
+        text-align: center;
+        z-index: 30;
+        max-width: 80vw;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="mainAppContainer">
+      <!-- Verbindingsindicator rechtsboven op de TV -->
+      <div id="connectionIndicator">
+        <div id="statusDot"></div>
+        <span id="connectionLabel">Verbinden...</span>
+      </div>
+
+      <!-- Zzz Slaapanimatie letters boven ogen -->
+      <div id="zzzContainer">
+        <span class="zzz-letter">Z</span>
+        <span class="zzz-letter">z</span>
+        <span class="zzz-letter">z</span>
+      </div>
+
+      <!-- SCOUTING OGEN: Twee Franse Lelies boven de golfvorm met luister-oren -->
+      <div id="scoutEyesContainer">
+        <!-- Luister-oren links -->
+        <div class="listening-ear left-ear">
+          <div class="ear-arc arc-1"></div>
+          <div class="ear-arc arc-2"></div>
+          <div class="ear-arc arc-3"></div>
+        </div>
+
+        <div class="eye-wrapper left-eye">
+          <svg class="eyebrow-svg left-eyebrow" viewBox="0 0 100 30" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 10,24 Q 50,6 90,24" stroke="var(--accent-color, #38bdf8)" stroke-width="9" stroke-linecap="round" fill="none" />
+          </svg>
+          <svg class="scout-eye-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+            <path class="fleur-leaf" d="M 50,8 C 64,32 70,55 50,90 C 30,55 36,32 50,8 Z" />
+            <path class="fleur-leaf" d="M 44,64 C 18,48 4,58 8,76 C 13,90 36,80 44,70 Z" />
+            <path class="fleur-leaf" d="M 56,64 C 82,48 96,58 92,76 C 87,90 64,80 56,70 Z" />
+            <rect class="fleur-ring" x="30" y="70" width="40" height="9" rx="4.5" />
+            <path class="fleur-base" d="M 38,81 C 44,95 50,110 50,110 C 50,110 56,95 62,81 Z" />
+          </svg>
+        </div>
+        <div class="eye-wrapper right-eye">
+          <svg class="eyebrow-svg right-eyebrow" viewBox="0 0 100 30" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 10,24 Q 50,6 90,24" stroke="var(--accent-color, #38bdf8)" stroke-width="9" stroke-linecap="round" fill="none" />
+          </svg>
+          <svg class="scout-eye-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+            <path class="fleur-leaf" d="M 50,8 C 64,32 70,55 50,90 C 30,55 36,32 50,8 Z" />
+            <path class="fleur-leaf" d="M 44,64 C 18,48 4,58 8,76 C 13,90 36,80 44,70 Z" />
+            <path class="fleur-leaf" d="M 56,64 C 82,48 96,58 92,76 C 87,90 64,80 56,70 Z" />
+            <rect class="fleur-ring" x="30" y="70" width="40" height="9" rx="4.5" />
+            <path class="fleur-base" d="M 38,81 C 44,95 50,110 50,110 C 50,110 56,95 62,81 Z" />
+          </svg>
+        </div>
+
+        <!-- Luister-oren rechts -->
+        <div class="listening-ear right-ear">
+          <div class="ear-arc arc-1"></div>
+          <div class="ear-arc arc-2"></div>
+          <div class="ear-arc arc-3"></div>
+        </div>
+      </div>
+
+      <!-- Canvas voor de centrale horizontaal gecentreerde golfvorm -->
+      <div id="canvasContainer">
+        <canvas id="waveformCanvas"></canvas>
+      </div>
+
+      <!-- Subtitels en Status onderaan -->
+      <div id="bottomSection">
+        <div id="subtitles"></div>
+        <div id="talkArea">
+          <div id="statusText">Houd ingedrukt of druk spatie om te praten</div>
+        </div>
+      </div>
+
+      <div id="errorBanner"></div>
+    </div>
+
+    <script type="module" src="/script.js"></script>
+  </body>
+</html>

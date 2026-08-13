@@ -1,0 +1,1 @@
+{"name":"Hélène kamp AI","description":"Een spraakgestuurde Hélène met live audio en visualisatie.","requestFramePermissions":["microphone"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
