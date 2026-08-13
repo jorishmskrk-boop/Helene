@@ -490,7 +490,7 @@ wss.on("connection", (clientWs) => {
       const currentDateStr = new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
       const kampInfoText = getKampInfoText();
 
-      const systemInstruction = `${baseInstruction}\n\n=== ACTUELE DATUM & TIJD: ${currentDateStr} ===\n=== VERKREGEN OFFICIEEL KAMP HANDBOEK & KENNISBANK (Kamp_info.md) ===\n${kampInfoText}\n========================================================================\nGebruik bovenstaande officiële kennis uit het Kamp Handboek om alle vragen over het kamp (zoals leiding per troep, dagprogramma, tijden, belsignalen, locaties, regels en EHBO) 100% exact te beantwoorden. Het is vandaag ${currentDateStr}. Vraag de gebruiker NOOIT naar de datum van vandaag. Onthoud het verloop van het gesprek voor vervolgvragen. Antwoord altijd enthousiast, vriendelijk en beknopt (maximaal 2 korte zinnen).`;
+      const systemInstruction = `${baseInstruction}\n\n=== ACTUELE DATUM & TIJD: ${currentDateStr} ===\n=== VERKREGEN OFFICIEEL KAMP HANDBOEK & KENNISBANK (Kamp_info.md) ===\n${kampInfoText}\n========================================================================\nGebruik bovenstaande officiële kennis uit het Kamp Handboek om alle vragen over het kamp (zoals leiding per troep, dagprogramma, tijden, belsignalen, locaties, regels en EHBO) 100% exact te beantwoorden. Het is vandaag ${currentDateStr}. Vraag de gebruiker NOOIT naar de datum van vandaag. Als er naar actuele zaken buiten het kamp wordt gevraagd (zoals het weer op de kamplocatie, actuele sportuitslagen of nieuws), gebruik je live Google Zoeken op het internet om een exact en actueel antwoord te geven. Onthoud het verloop van het gesprek voor vervolgvragen. Antwoord altijd enthousiast, vriendelijk en beknopt (maximaal 2 korte zinnen).`;
 
       const activeModel = modelOverride || currentSettings.modelName || "gemini-2.5-flash";
       console.log(`[SERVER] Turn verwerken met Gemini streaming (${activeModel})... (Historie lengte: ${sessionConversationHistory.length})`);
@@ -581,6 +581,9 @@ wss.on("connection", (clientWs) => {
       const stream = await aiClient.models.generateContentStream({
         model: activeModel,
         contents,
+        config: {
+          tools: [{ googleSearch: {} }],
+        },
       });
 
       let fullHeleneText = "";
