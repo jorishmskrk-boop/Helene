@@ -368,6 +368,10 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         resetIdleTimer();
       } else if (msg.type === "audio") {
         // Audio van Hélène ontvangen
+        if (isRecording || userWantsRecording) {
+          log("Inkomende audio genegeerd omdat de gebruiker aan het opnemen is.");
+          return;
+        }
         isHeleneSpeaking = true;
         audioBytesReceivedTotal += Math.round((msg.data.length * 3) / 4);
         playAudioChunk(msg.data);
@@ -688,6 +692,9 @@ function stopRecording() {
 // AUDIO AFSPELEN (GEMINI AUDIO OUTPUT 24kHz)
 // ============================================================================
 async function playAudioChunk(base64Data) {
+  if (isRecording || userWantsRecording) {
+    return;
+  }
   ensureAudioUnlocked();
 
   if (!outputAnalyser) {

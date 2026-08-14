@@ -732,9 +732,30 @@ wss.on("connection", (clientWs) => {
   let isFlushingTTS = false;
   let pendingFlushRequest = false;
   let activeFlushPromise: Promise<void> | null = null;
+  let activeTurnController: AbortController | null = null;
+
+  function cancelActiveTurn() {
+    if (activeTurnController) {
+      try {
+        activeTurnController.abort();
+      } catch (e) {}
+      activeTurnController = null;
+    }
+    textBuffer = "";
+    pendingAudioBuffers = [];
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+  }
 
   // Hulpfunctie om gebufferde tekst naar spraak-audio om te zetten en af te spelen
   async function flushTTSBuffer(forceAll = false): Promise<void> {
+    if (activeTurnController?.signal.aborted) {
+      textBuffer = "";
+      return;
+    }
+
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
@@ -746,7 +767,7 @@ wss.on("connection", (clientWs) => {
 
     if (isFlushingTTS && activeFlushPromise) {
       await activeFlushPromise;
-      if (textBuffer.trim().length > 0) {
+      if (textBuffer.trim().length > 0 && !activeTurnController?.signal.aborted) {
         return flushTTSBuffer(forceAll);
       }
       return;
@@ -760,6 +781,11 @@ wss.on("connection", (clientWs) => {
           keepLooping = false;
 
           while (textBuffer.trim().length > 0) {
+            if (activeTurnController?.signal.aborted) {
+              textBuffer = "";
+              break;
+            }
+
             let splitIndex = -1;
             const force = pendingFlushRequest;
 
@@ -785,12 +811,12 @@ wss.on("connection", (clientWs) => {
             const chunkToSpeak = textBuffer.substring(0, splitIndex).trim();
             textBuffer = textBuffer.substring(splitIndex);
 
-            if (chunkToSpeak.length > 0) {
+            if (chunkToSpeak.length > 0 && !activeTurnController?.signal.aborted) {
               const currentSettings = getSettings();
               const ttsEngine = currentSettings.ttsEngine || "gemini";
               console.log(`[SERVER] Spraak genereren voor: "${chunkToSpeak}" (Engine: ${ttsEngine})`);
               const audioBase64 = await generateTTSAudio(chunkToSpeak, currentSettings);
-              if (audioBase64 && clientWs.readyState === WebSocket.OPEN) {
+              if (audioBase64 && clientWs.readyState === WebSocket.OPEN && !activeTurnController?.signal.aborted) {
                 audioBytesReceived += Math.round((audioBase64.length * 3) / 4);
                 clientWs.send(
                   JSON.stringify({
@@ -802,7 +828,7 @@ wss.on("connection", (clientWs) => {
             }
           }
 
-          if (pendingFlushRequest && textBuffer.trim().length > 0) {
+          if (pendingFlushRequest && textBuffer.trim().length > 0 && !activeTurnController?.signal.aborted) {
             keepLooping = true;
           }
         }
@@ -818,13 +844,15 @@ wss.on("connection", (clientWs) => {
   }
 
   function appendToTextBuffer(text: string) {
-    if (!text) return;
+    if (!text || activeTurnController?.signal.aborted) return;
     textBuffer += text;
     flushTTSBuffer(false);
 
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      flushTTSBuffer(true);
+      if (!activeTurnController?.signal.aborted) {
+        flushTTSBuffer(true);
+      }
     }, 250);
   }
 
@@ -973,6 +1001,11 @@ wss.on("connection", (clientWs) => {
 
   // Hulpfunctie voor verwerken van turn via Gemini Streaming API
   async function handleStreamingTurn(audioBase64?: string, customInstruction?: string, modelOverride?: string) {
+    cancelActiveTurn();
+    const turnController = new AbortController();
+    activeTurnController = turnController;
+    const { signal } = turnController;
+
     const turnStart = Date.now();
     try {
       const currentSettings = getSettings();
@@ -1034,7 +1067,7 @@ wss.on("connection", (clientWs) => {
               ],
             });
             const userTranscription = sttRes.text?.trim() || "";
-            if (userTranscription && userTranscription !== "[Geen verstaanbare spraak]") {
+            if (userTranscription && userTranscription !== "[Geen verstaanbare spraak]" && !signal.aborted) {
               // Vervang de zware audio in de geschiedenis door de lichte tekst,
               // zodat volgende beurten niet steeds trager worden.
               userTurnEntry.parts = [{ text: `De gebruiker zei zojuist: "${userTranscription}"` }];
@@ -1042,7 +1075,7 @@ wss.on("connection", (clientWs) => {
               console.log(`🎤 [VERSTAAN DOOR HÉLÈNE]: "${userTranscription}"`);
               console.log(`==================================================\n`);
               addLog("user", `🗣️ Gebruiker zei: "${userTranscription}"`, `Transcriptie in ${((Date.now() - sttStart) / 1000).toFixed(1)}s`);
-              if (clientWs.readyState === WebSocket.OPEN) {
+              if (clientWs.readyState === WebSocket.OPEN && !signal.aborted) {
                 clientWs.send(
                   JSON.stringify({
                     type: "user_transcription",
@@ -1099,12 +1132,16 @@ wss.on("connection", (clientWs) => {
       let usedSearch = false;
 
       for await (const chunk of stream) {
+        if (signal.aborted) {
+          console.log("[SERVER] Gemini streaming beurt geannuleerd via AbortController.");
+          break;
+        }
         // Detecteer of Hélène live internet-zoeken heeft gebruikt
         const gm = (chunk as any)?.candidates?.[0]?.groundingMetadata;
         if (gm && (gm.webSearchQueries?.length || gm.groundingChunks?.length)) {
           usedSearch = true;
         }
-        if (chunk.text && clientWs.readyState === WebSocket.OPEN) {
+        if (chunk.text && clientWs.readyState === WebSocket.OPEN && !signal.aborted) {
           if (!firstChunkAt) firstChunkAt = Date.now();
           fullHeleneText += chunk.text;
           console.log(`[SERVER] Gemini tekst chunk: "${chunk.text}"`);
@@ -1126,6 +1163,11 @@ wss.on("connection", (clientWs) => {
         }
       }
 
+      if (signal.aborted) {
+        textBuffer = "";
+        return;
+      }
+
       // ⏱️ Tijdmeting zodat je precies ziet waar de wachttijd zit
       const doneAt = Date.now();
       const toFirstWord = ((firstChunkAt || doneAt) - turnStart) / 1000;
@@ -1136,7 +1178,7 @@ wss.on("connection", (clientWs) => {
         `Model: ${activeModel}${usedSearch ? " · 🔎 internet gebruikt" : ""}`
       );
 
-      if (fullHeleneText.trim().length > 0) {
+      if (fullHeleneText.trim().length > 0 && !signal.aborted) {
         console.log(`\n==================================================`);
         console.log(`🤖 [ANTWOORD VAN HÉLÈNE]: "${fullHeleneText.trim()}"`);
         console.log(`==================================================\n`);
@@ -1154,12 +1196,18 @@ wss.on("connection", (clientWs) => {
         sessionConversationHistory = sessionConversationHistory.slice(sessionConversationHistory.length - 16);
       }
 
-      await flushTTSBuffer(true);
+      if (!signal.aborted) {
+        await flushTTSBuffer(true);
+      }
 
-      if (clientWs.readyState === WebSocket.OPEN) {
+      if (clientWs.readyState === WebSocket.OPEN && !signal.aborted) {
         clientWs.send(JSON.stringify({ type: "turn_complete" }));
       }
     } catch (err: any) {
+      if (signal.aborted) {
+        console.log("[SERVER] Abort signal opgevangen tijdens streaming turn execution.");
+        return;
+      }
       console.error("[SERVER] Fout bij handleStreamingTurn:", err);
       addLog("error", "Fout bij verwerken Gemini antwoord", err?.message || String(err));
       if (clientWs.readyState === WebSocket.OPEN) {
@@ -1176,6 +1224,7 @@ wss.on("connection", (clientWs) => {
       if (data.type === "start_session") {
         console.log("[SERVER] Sessie gestart door client.");
         addLog("system", "WebSocket spraaksessie gestart");
+        cancelActiveTurn();
         if (session) {
           try { session.close(); } catch (e) {}
           session = null;
@@ -1270,13 +1319,12 @@ wss.on("connection", (clientWs) => {
       // 4. Onderbreking door gebruiker
       else if (data.type === "interrupt") {
         console.log("[SERVER] Gebruiker onderbreekt Hélène");
-        textBuffer = "";
-        // In Live-modus regelt het versturen van nieuwe activityStart/audio de
-        // barge-in vanzelf; het scherm stopt lokaal al met afspelen.
+        cancelActiveTurn();
       }
 
       // 5. Sessie handmatig sluiten
       else if (data.type === "close_session") {
+        cancelActiveTurn();
         if (liveSession) {
           try { liveSession.close(); } catch (e) {}
           liveSession = null;
