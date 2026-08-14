@@ -333,10 +333,25 @@
           <div class="card-head"><h2><span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/></svg></span>Spraak-engine</h2></div>
           <p class="help">Kies waarmee Hélène praat.</p>
           <div class="opt-grid" id="engineGrid">
-            <div class="opt" data-engine="gemini"><span class="dot"></span><div><div class="t">🟢 Natuurlijke stem</div><div class="d">Aanbevolen — echte menselijke stemmen via Gemini. Gratis met je sleutel.</div></div></div>
+            <div class="opt" data-engine="live"><span class="dot"></span><div><div class="t">⚡ Live-stem (snelst)</div><div class="d">Directe real-time stem via Gemini Live — de kortste wachttijd. Gebruikt de Gemini-stemmen hieronder.</div></div></div>
+            <div class="opt" data-engine="gemini"><span class="dot"></span><div><div class="t">🟢 Natuurlijke stem</div><div class="d">Echte menselijke stemmen via Gemini. Gratis met je sleutel.</div></div></div>
             <div class="opt" data-engine="free"><span class="dot"></span><div><div class="t">⚪ Gratis basisstem</div><div class="d">Robotachtig; kiest alleen een taal, geen man/vrouw.</div></div></div>
             <div class="opt" data-engine="elevenlabs"><span class="dot"></span><div><div class="t">🟣 ElevenLabs</div><div class="d">Eigen of gekloonde stem (API-sleutel nodig).</div></div></div>
           </div>
+        </div>
+
+        <!-- Live-modus uitleg -->
+        <div class="card" id="cardLive" style="display:none;">
+          <div class="card-head"><h2><span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-6Z"/></svg></span>Live-stem</h2></div>
+          <p class="help">De <strong>snelste</strong> optie: Hélène luistert en praat in real-time via de Gemini Live API, zonder aparte spraak-stap. Kies hieronder welke Gemini-stem ze gebruikt. Let op: actuele info (weer/nieuws) werkt in deze modus iets minder betrouwbaar dan bij de gewone natuurlijke stem, en ElevenLabs wordt hier niet gebruikt.</p>
+          <div class="field"><label class="fld" for="liveModel">Live-model</label>
+            <select id="liveModel">
+              <option value="gemini-2.0-flash-live-001">gemini-2.0-flash-live-001 (stabiel, ondersteunt zoeken)</option>
+              <option value="gemini-live-2.5-flash-preview">gemini-live-2.5-flash-preview (nieuwer)</option>
+              <option value="gemini-2.5-flash-preview-native-audio-dialog">gemini-2.5-flash-preview-native-audio-dialog (mooiste stem, zoeken beperkt)</option>
+            </select>
+          </div>
+          <p class="help" style="margin-top:6px">Werkt Hélène niet in Live-modus? Kies dan een ander model — niet elk model is op elke API-sleutel beschikbaar. In het logboek zie je "Kon Live-sessie niet starten" als het model niet werkt; ze valt dan automatisch terug op de gewone stem.</p>
         </div>
 
         <!-- Gemini stemmen -->
@@ -490,7 +505,7 @@
     $('tGemini').innerHTML = data.hasGeminiKey ? 'Actief <span class="chip good">verbonden</span>' : '<span class="chip warn">geen sleutel</span>';
     const n = data.connectedScreens||0;
     $('tScreens').innerHTML = `${n} <small>online</small>`;
-    const engineName = {gemini:'Natuurlijk', free:'Gratis', elevenlabs:'ElevenLabs'}[data.activeEngine]||data.activeEngine;
+    const engineName = {live:'Live', gemini:'Natuurlijk', free:'Gratis', elevenlabs:'ElevenLabs'}[data.activeEngine]||data.activeEngine;
     $('tVoice').innerHTML = `${data.activeVoice||'—'} <small>${engineName}</small>`;
     $('tStorage').innerHTML = data.persistentStorage ? 'Blijvend <span class="chip good">Upstash</span>' : 'Tijdelijk <span class="chip warn">geen Upstash</span>';
     // scherm-indicatoren
@@ -515,14 +530,16 @@
   }
   function updateEngineUI(){
     document.querySelectorAll('#engineGrid .opt').forEach(o=>o.classList.toggle('sel', o.dataset.engine===state.ttsEngine));
-    $('cardGeminiVoices').style.display = state.ttsEngine==='gemini' ? '' : 'none';
+    // Zowel de "Natuurlijke stem" als de "Live-stem" gebruiken de Gemini-stemmenlijst
+    $('cardGeminiVoices').style.display = (state.ttsEngine==='gemini'||state.ttsEngine==='live') ? '' : 'none';
+    $('cardLive').style.display = state.ttsEngine==='live' ? '' : 'none';
     $('cardFreeVoice').style.display = state.ttsEngine==='free' ? '' : 'none';
     $('cardEleven').style.display = state.ttsEngine==='elevenlabs' ? '' : 'none';
   }
   function updateActiveVoice(){
-    const engineName = {gemini:'Natuurlijke stem', free:'Gratis basisstem', elevenlabs:'ElevenLabs'}[state.ttsEngine];
+    const engineName = {live:'Live-stem', gemini:'Natuurlijke stem', free:'Gratis basisstem', elevenlabs:'ElevenLabs'}[state.ttsEngine];
     let voiceTxt;
-    if(state.ttsEngine==='gemini'){
+    if(state.ttsEngine==='gemini'||state.ttsEngine==='live'){
       const v = GEMINI_VOICES.find(x=>x.name===state.voiceName);
       voiceTxt = v ? `${v.name} — ${genderLabel(v.g)}, ${v.desc}` : state.voiceName;
     } else if(state.ttsEngine==='elevenlabs'){ voiceTxt = 'Eigen ElevenLabs-stem'; }
@@ -541,6 +558,7 @@
     saved = { ttsEngine:state.ttsEngine, voiceName:state.voiceName };
     $('sysInstr').value = data.systemInstruction||'';
     if(data.modelName) $('modelName').value = data.modelName;
+    if(data.liveModel) $('liveModel').value = data.liveModel;
     $('freeVoiceName').value = data.voiceName||'';
     $('elKey').value = data.elevenlabsApiKey||''; $('elVoice').value=data.elevenlabsVoiceId||'';
     if(data.elevenlabsModelId) $('elModel').value=data.elevenlabsModelId;
@@ -571,6 +589,7 @@
       elevenlabsVoiceId: $('elVoice').value.trim(),
       elevenlabsModelId: $('elModel').value,
       modelName: $('modelName').value,
+      liveModel: $('liveModel').value,
       idleTimeoutMs: parseInt($('idleSec').value,10)*1000,
       maxSessionDurationMs: parseInt($('maxMin').value,10)*60000,
       showSubtitles: $('showSubs').checked,
