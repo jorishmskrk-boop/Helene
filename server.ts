@@ -837,7 +837,11 @@ wss.on("connection", (clientWs) => {
         const wavBase64 = pcmToWavBase64(audioBase64, 16000);
         console.log(`[SERVER] Valid WAV audio buffer sent directly to Gemini (${wavBase64.length} chars base64)`);
 
-        sessionConversationHistory.push({
+        // Bewaar een verwijzing naar deze beurt. De audio wordt alleen voor DEZE
+        // beurt meegestuurd; zodra de transcriptie klaar is vervangen we de audio
+        // door tekst, zodat de geschiedenis niet volloopt met zware audio-opnames
+        // (anders wordt elke volgende vraag steeds trager om te "verstaan").
+        const userTurnEntry: { role: "user"; parts: any[] } = {
           role: "user",
           parts: [
             {
@@ -850,7 +854,8 @@ wss.on("connection", (clientWs) => {
               text: "Je hebt zojuist gesproken audio van de gebruiker ontvangen. Luister heel aandachtig naar de audio in de bijlage. Antwoord direct inhoudelijk en enthousiast op wat de gebruiker vraagt op basis van ons eerdere gesprek en het Kamp Handboek (maximaal 2 korte zinnen). Zeg nooit dat je geen geluid of audio kunt horen.",
             },
           ],
-        });
+        };
+        sessionConversationHistory.push(userTurnEntry);
 
         // STT Transcriptie asynchroon in de achtergrond uitvoeren (GEEN VERTRAAGINGS-BLOCKER!)
         (async () => {
@@ -876,6 +881,9 @@ wss.on("connection", (clientWs) => {
             });
             const userTranscription = sttRes.text?.trim() || "";
             if (userTranscription && userTranscription !== "[Geen verstaanbare spraak]") {
+              // Vervang de zware audio in de geschiedenis door de lichte tekst,
+              // zodat volgende beurten niet steeds trager worden.
+              userTurnEntry.parts = [{ text: `De gebruiker zei zojuist: "${userTranscription}"` }];
               console.log(`\n==================================================`);
               console.log(`🎤 [VERSTAAN DOOR HÉLÈNE]: "${userTranscription}"`);
               console.log(`==================================================\n`);
@@ -904,6 +912,17 @@ wss.on("connection", (clientWs) => {
             },
           ],
         });
+      }
+
+      // Garantie tegen trage "verstaan"-tijden: verwijder audio uit alle eerdere
+      // beurten. Alleen de HUIDIGE beurt (de laatste in de lijst) stuurt audio mee;
+      // eerdere beurten reizen als lichte tekst, zodat de payload klein blijft.
+      for (let i = 0; i < sessionConversationHistory.length - 1; i++) {
+        const entry = sessionConversationHistory[i];
+        if (entry.role === "user" && entry.parts.some((p: any) => p && p.inlineData)) {
+          const textParts = entry.parts.filter((p: any) => p && p.text && !p.inlineData);
+          entry.parts = textParts.length > 0 ? textParts : [{ text: "(eerdere gesproken vraag van de gebruiker)" }];
+        }
       }
 
       // Bouw de volledige multimodale gespreksinhoud op inclusief geschiedenis
