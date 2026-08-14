@@ -344,6 +344,14 @@
         <div class="card" id="cardLive" style="display:none;">
           <div class="card-head"><h2><span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-6Z"/></svg></span>Live-stem</h2></div>
           <p class="help">De <strong>snelste</strong> optie: Hélène luistert en praat in real-time via de Gemini Live API, zonder aparte spraak-stap. Kies hieronder welke Gemini-stem ze gebruikt. Let op: actuele info (weer/nieuws) werkt in deze modus iets minder betrouwbaar dan bij de gewone natuurlijke stem, en ElevenLabs wordt hier niet gebruikt.</p>
+          <div class="field"><label class="fld" for="liveModel">Live-model</label>
+            <select id="liveModel">
+              <option value="gemini-2.0-flash-live-001">gemini-2.0-flash-live-001 (stabiel, ondersteunt zoeken)</option>
+              <option value="gemini-live-2.5-flash-preview">gemini-live-2.5-flash-preview (nieuwer)</option>
+              <option value="gemini-2.5-flash-preview-native-audio-dialog">gemini-2.5-flash-preview-native-audio-dialog (mooiste stem, zoeken beperkt)</option>
+            </select>
+          </div>
+          <p class="help" style="margin-top:6px">Werkt Hélène niet in Live-modus? Kies dan een ander model — niet elk model is op elke API-sleutel beschikbaar. In het logboek zie je "Kon Live-sessie niet starten" als het model niet werkt; ze valt dan automatisch terug op de gewone stem.</p>
         </div>
 
         <!-- Gemini stemmen -->
@@ -550,6 +558,7 @@
     saved = { ttsEngine:state.ttsEngine, voiceName:state.voiceName };
     $('sysInstr').value = data.systemInstruction||'';
     if(data.modelName) $('modelName').value = data.modelName;
+    if(data.liveModel) $('liveModel').value = data.liveModel;
     $('freeVoiceName').value = data.voiceName||'';
     $('elKey').value = data.elevenlabsApiKey||''; $('elVoice').value=data.elevenlabsVoiceId||'';
     if(data.elevenlabsModelId) $('elModel').value=data.elevenlabsModelId;
@@ -580,6 +589,7 @@
       elevenlabsVoiceId: $('elVoice').value.trim(),
       elevenlabsModelId: $('elModel').value,
       modelName: $('modelName').value,
+      liveModel: $('liveModel').value,
       idleTimeoutMs: parseInt($('idleSec').value,10)*1000,
       maxSessionDurationMs: parseInt($('maxMin').value,10)*60000,
       showSubtitles: $('showSubs').checked,
