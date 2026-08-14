@@ -819,6 +819,7 @@ wss.on("connection", (clientWs) => {
 
   // Hulpfunctie voor verwerken van turn via Gemini Streaming API
   async function handleStreamingTurn(audioBase64?: string, customInstruction?: string, modelOverride?: string) {
+    const turnStart = Date.now();
     try {
       const currentSettings = getSettings();
       const baseInstruction = customInstruction || currentSettings.systemInstruction;
@@ -859,6 +860,7 @@ wss.on("connection", (clientWs) => {
 
         // STT Transcriptie asynchroon in de achtergrond uitvoeren (GEEN VERTRAAGINGS-BLOCKER!)
         (async () => {
+          const sttStart = Date.now();
           try {
             const sttRes = await aiClient.models.generateContent({
               model: "gemini-2.5-flash",
@@ -887,7 +889,7 @@ wss.on("connection", (clientWs) => {
               console.log(`\n==================================================`);
               console.log(`🎤 [VERSTAAN DOOR HÉLÈNE]: "${userTranscription}"`);
               console.log(`==================================================\n`);
-              addLog("user", `🗣️ Gebruiker zei: "${userTranscription}"`, `Model: gemini-2.5-flash`);
+              addLog("user", `🗣️ Gebruiker zei: "${userTranscription}"`, `Transcriptie in ${((Date.now() - sttStart) / 1000).toFixed(1)}s`);
               if (clientWs.readyState === WebSocket.OPEN) {
                 clientWs.send(
                   JSON.stringify({
@@ -941,9 +943,17 @@ wss.on("connection", (clientWs) => {
       });
 
       let fullHeleneText = "";
+      let firstChunkAt = 0;
+      let usedSearch = false;
 
       for await (const chunk of stream) {
+        // Detecteer of Hélène live internet-zoeken heeft gebruikt
+        const gm = (chunk as any)?.candidates?.[0]?.groundingMetadata;
+        if (gm && (gm.webSearchQueries?.length || gm.groundingChunks?.length)) {
+          usedSearch = true;
+        }
         if (chunk.text && clientWs.readyState === WebSocket.OPEN) {
+          if (!firstChunkAt) firstChunkAt = Date.now();
           fullHeleneText += chunk.text;
           console.log(`[SERVER] Gemini tekst chunk: "${chunk.text}"`);
           clientWs.send(
@@ -963,6 +973,16 @@ wss.on("connection", (clientWs) => {
           appendToTextBuffer(chunk.text);
         }
       }
+
+      // ⏱️ Tijdmeting zodat je precies ziet waar de wachttijd zit
+      const doneAt = Date.now();
+      const toFirstWord = ((firstChunkAt || doneAt) - turnStart) / 1000;
+      const total = (doneAt - turnStart) / 1000;
+      addLog(
+        "system",
+        `⏱️ Reactietijd: ${toFirstWord.toFixed(1)}s tot 1e woord · ${total.toFixed(1)}s totaal`,
+        `Model: ${activeModel}${usedSearch ? " · 🔎 internet gebruikt" : ""}`
+      );
 
       if (fullHeleneText.trim().length > 0) {
         console.log(`\n==================================================`);
