@@ -242,10 +242,19 @@ async function generateTTSAudio(text: string, settings: any): Promise<string | n
     return await generateFreeSpeechAudio(text, settings.voiceName);
   }
 
-  // 3. Standaard ("gemini"): probeer de natuurlijke Gemini-stem, val bij een fout
-  //    automatisch terug op de gratis stem — dus nooit slechter dan de huidige werking.
-  const geminiAudio = await generateGeminiTTSAudio(text, settings);
+  // 3. Standaard ("gemini"): natuurlijke Gemini-stem. Om te voorkomen dat de stem
+  //    middenin een antwoord "wisselt" naar de gratis stem, proberen we het eerst
+  //    nog een keer opnieuw. Pas als het echt niet lukt, valt hij terug (zodat er
+  //    nooit stilte valt) — dat blijft zeldzaam.
+  let geminiAudio = await generateGeminiTTSAudio(text, settings);
+  if (!geminiAudio) {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    geminiAudio = await generateGeminiTTSAudio(text, settings);
+  }
   if (geminiAudio) return geminiAudio;
+
+  console.warn("[TTS] Gemini-stem gaf geen audio; tijdelijke terugval op gratis stem.");
+  addLog("error", "⚠️ Gemini-stem haperde — tijdelijk gratis stem gebruikt", "Controleer of het TTS-model beschikbaar is voor je API-sleutel");
   return await generateFreeSpeechAudio(text, settings.voiceName);
 }
 
@@ -526,16 +535,46 @@ app.get("/api/health", (req, res) => {
 });
 
 app.get("/api/status", (req, res) => {
+  const s = getSettings();
   const hasGeminiKey = getGeminiApiKey().length > 0;
-  const hasElevenLabsKey = (process.env.ELEVENLABS_API_KEY || getSettings().elevenlabsApiKey || "").length > 0;
+  const hasElevenLabsKey = (process.env.ELEVENLABS_API_KEY || s.elevenlabsApiKey || "").length > 0;
   res.json({
     status: "ok",
     hasGeminiKey,
     hasElevenLabsKey,
     persistentStorage: REDIS_ENABLED,
-    activeModel: getSettings().modelName || "gemini-2.5-flash",
-    activeEngine: getSettings().ttsEngine || "gemini",
+    connectedScreens: displayClients.size,
+    activeModel: s.modelName || "gemini-2.5-flash",
+    activeEngine: s.ttsEngine || "gemini",
+    activeVoice: s.voiceName || "Kore",
   });
+});
+
+// Test-endpoint voor de ACTIEVE stem (ongeacht engine): genereert een kort
+// audiofragment met de huidige of meegegeven instellingen, zodat je in beheer
+// precies hoort welke stem gebruikt gaat worden.
+app.post("/api/tts/test", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const effective = { ...getSettings(), ...body };
+    const sample =
+      typeof body.text === "string" && body.text.trim().length > 0
+        ? body.text.trim()
+        : "Hallo! Ik ben Hélène, jouw gids op het scoutingkamp. Zo klinkt mijn stem.";
+    const audioBase64 = await generateTTSAudio(sample, effective);
+    if (audioBase64) {
+      res.json({
+        status: "ok",
+        audioBase64,
+        engine: effective.ttsEngine || "gemini",
+        voice: effective.voiceName || "Kore",
+      });
+    } else {
+      res.status(400).json({ status: "error", message: "Kon geen spraak genereren met deze stem." });
+    }
+  } catch (err: any) {
+    res.status(500).json({ status: "error", message: err?.message || "Fout bij het testen van de stem." });
+  }
 });
 
 // Test-endpoint voor ElevenLabs spraak
