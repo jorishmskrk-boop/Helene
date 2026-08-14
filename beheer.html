@@ -426,6 +426,52 @@
           </div>
         </div>
 
+        <!-- Card: Mededeling laten uitspreken door het scherm -->
+        <div class="card">
+          <div class="card-title">📢 Mededeling laten uitspreken</div>
+          <div class="form-group">
+            <div class="help-text">
+              Typ een bericht en laat het direct uitspreken door alle verbonden schermen (met de nu gekozen stem/engine). Handig voor mededelingen zoals "Verzamelen bij de vlaggenmast!".
+            </div>
+            <textarea id="sayText" placeholder="Bijv. Over vijf minuten verzamelen bij de vlaggenmast!" style="min-height: 90px;" maxlength="1000"></textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem;">
+              <span id="sayCharCount" style="font-size: 0.75rem; color: var(--text-muted);">0 / 1000</span>
+            </div>
+
+            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem;">
+              <button type="button" class="btn btn-secondary say-quick" style="padding: 0.35rem 0.7rem; font-size: 0.8rem;" data-text="Verzamelen bij de vlaggenmast!">🚩 Verzamelen</button>
+              <button type="button" class="btn btn-secondary say-quick" style="padding: 0.35rem 0.7rem; font-size: 0.8rem;" data-text="Het is tijd om te eten! Kom naar de eettent.">🍽️ Eten</button>
+              <button type="button" class="btn btn-secondary say-quick" style="padding: 0.35rem 0.7rem; font-size: 0.8rem;" data-text="Tijd om op te ruimen en naar de tenten te gaan. Welterusten!">🌙 Bedtijd</button>
+            </div>
+
+            <div style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
+              <button type="button" id="sayBtn" class="btn">📢 Laat uitspreken</button>
+              <span id="sayStatus" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card: Kennisbank bewerken -->
+        <div class="card">
+          <div class="card-title" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <span>📚 Kennisbank (Kamp Handboek)</span>
+            <button type="button" id="reloadKnowledgeBtn" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">🔄 Opnieuw laden</button>
+          </div>
+          <div class="form-group">
+            <div class="help-text">
+              Dit is de officiële kennis waarmee Hélène alle vragen over het kamp beantwoordt (leiding, dagprogramma, tijden, locaties, EHBO...). Wijzigingen zijn <strong>direct actief</strong> — geen herstart nodig. Er wordt automatisch een back-up gemaakt bij het opslaan.
+            </div>
+            <textarea id="knowledgeText" placeholder="Kennisbank laden..." style="min-height: 320px; font-family: monospace; font-size: 0.85rem; line-height: 1.5;"></textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; flex-wrap: wrap; gap: 0.6rem;">
+              <span id="knowledgeStatus" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+              <div style="display: flex; gap: 0.6rem;">
+                <button type="button" id="restoreKnowledgeBtn" class="btn btn-secondary" style="border-color: #f59e0b; color: #fcd34d;">↩️ Herstel back-up</button>
+                <button type="button" id="saveKnowledgeBtn" class="btn">💾 Kennisbank opslaan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Card 2: Stemkeuze & AI Model -->
         <div class="card">
           <div class="card-title">🎙️ Spraak-engine & Stemkeuze</div>
@@ -1028,11 +1074,166 @@ Weet je iets niet, zeg dat dan eerlijk in plaats van iets te verzinnen.`,
         });
       }
 
+      // === Mededeling laten uitspreken ===
+      const sayText = document.getElementById("sayText");
+      const sayBtn = document.getElementById("sayBtn");
+      const sayStatus = document.getElementById("sayStatus");
+      const sayCharCount = document.getElementById("sayCharCount");
+
+      function updateSayCharCount() {
+        if (sayCharCount && sayText) sayCharCount.textContent = `${sayText.value.length} / 1000`;
+      }
+
+      if (sayText) {
+        sayText.addEventListener("input", updateSayCharCount);
+        updateSayCharCount();
+      }
+
+      document.querySelectorAll(".say-quick").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (sayText) {
+            sayText.value = btn.dataset.text || "";
+            updateSayCharCount();
+            sayText.focus();
+          }
+        });
+      });
+
+      async function sendSayMessage() {
+        const text = (sayText?.value || "").trim();
+        if (!text) {
+          if (sayStatus) sayStatus.textContent = "⚠️ Typ eerst een bericht.";
+          return;
+        }
+        if (sayBtn) sayBtn.disabled = true;
+        if (sayStatus) {
+          sayStatus.style.color = "var(--text-secondary)";
+          sayStatus.textContent = "⏳ Bezig met uitspreken...";
+        }
+        try {
+          const res = await fetch("/api/say", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            const n = data.displays || 0;
+            if (sayStatus) {
+              sayStatus.style.color = "#4ade80";
+              sayStatus.textContent = `✅ Uitgesproken op ${n} scherm${n === 1 ? "" : "en"}.`;
+            }
+            showToast("📢 Mededeling uitgesproken!");
+          } else {
+            if (sayStatus) {
+              sayStatus.style.color = "#f43f5e";
+              sayStatus.textContent = "❌ " + (data.message || "Kon mededeling niet uitspreken.");
+            }
+          }
+        } catch (err) {
+          if (sayStatus) {
+            sayStatus.style.color = "#f43f5e";
+            sayStatus.textContent = "❌ Netwerkfout bij uitspreken.";
+          }
+        } finally {
+          if (sayBtn) sayBtn.disabled = false;
+        }
+      }
+
+      if (sayBtn) sayBtn.addEventListener("click", sendSayMessage);
+      if (sayText) {
+        // Ctrl/Cmd + Enter om snel te versturen
+        sayText.addEventListener("keydown", (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            sendSayMessage();
+          }
+        });
+      }
+
+      // === Kennisbank bewerken ===
+      const knowledgeText = document.getElementById("knowledgeText");
+      const knowledgeStatus = document.getElementById("knowledgeStatus");
+      const saveKnowledgeBtn = document.getElementById("saveKnowledgeBtn");
+      const reloadKnowledgeBtn = document.getElementById("reloadKnowledgeBtn");
+      const restoreKnowledgeBtn = document.getElementById("restoreKnowledgeBtn");
+
+      function setKnowledgeStatus(msg, color) {
+        if (knowledgeStatus) {
+          knowledgeStatus.style.color = color || "var(--text-secondary)";
+          knowledgeStatus.textContent = msg;
+        }
+      }
+
+      async function loadKnowledge() {
+        setKnowledgeStatus("⏳ Laden...", "var(--text-secondary)");
+        try {
+          const res = await fetch("/api/knowledge");
+          const data = await res.json();
+          if (res.ok) {
+            if (knowledgeText) knowledgeText.value = data.content || "";
+            setKnowledgeStatus(`✅ Geladen (${data.bytes || 0} tekens).`, "var(--text-secondary)");
+            if (restoreKnowledgeBtn) restoreKnowledgeBtn.style.display = data.hasBackup ? "" : "none";
+          } else {
+            setKnowledgeStatus("❌ " + (data.message || "Kon kennisbank niet laden."), "#f43f5e");
+          }
+        } catch (err) {
+          setKnowledgeStatus("❌ Netwerkfout bij laden.", "#f43f5e");
+        }
+      }
+
+      async function saveKnowledge() {
+        if (!knowledgeText) return;
+        if (saveKnowledgeBtn) saveKnowledgeBtn.disabled = true;
+        setKnowledgeStatus("⏳ Opslaan...", "var(--text-secondary)");
+        try {
+          const res = await fetch("/api/knowledge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: knowledgeText.value }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setKnowledgeStatus(`✅ Opgeslagen (${data.bytes || 0} tekens). Direct actief.`, "#4ade80");
+            if (restoreKnowledgeBtn) restoreKnowledgeBtn.style.display = "";
+            showToast("📚 Kennisbank opgeslagen!");
+          } else {
+            setKnowledgeStatus("❌ " + (data.message || "Kon kennisbank niet opslaan."), "#f43f5e");
+          }
+        } catch (err) {
+          setKnowledgeStatus("❌ Netwerkfout bij opslaan.", "#f43f5e");
+        } finally {
+          if (saveKnowledgeBtn) saveKnowledgeBtn.disabled = false;
+        }
+      }
+
+      async function restoreKnowledge() {
+        if (!confirm("Weet je zeker dat je de vorige (back-up) versie wilt herstellen? Je huidige wijzigingen gaan dan verloren.")) return;
+        try {
+          const res = await fetch("/api/knowledge/restore", { method: "POST" });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            if (knowledgeText) knowledgeText.value = data.content || "";
+            setKnowledgeStatus(`↩️ Back-up hersteld (${data.bytes || 0} tekens).`, "#fcd34d");
+            showToast("↩️ Back-up hersteld!");
+          } else {
+            setKnowledgeStatus("❌ " + (data.message || "Kon back-up niet herstellen."), "#f43f5e");
+          }
+        } catch (err) {
+          setKnowledgeStatus("❌ Netwerkfout bij herstellen.", "#f43f5e");
+        }
+      }
+
+      if (saveKnowledgeBtn) saveKnowledgeBtn.addEventListener("click", saveKnowledge);
+      if (reloadKnowledgeBtn) reloadKnowledgeBtn.addEventListener("click", loadKnowledge);
+      if (restoreKnowledgeBtn) restoreKnowledgeBtn.addEventListener("click", restoreKnowledge);
+
       // Periodiek logboek verversen elke 3 seconden
       fetchLogs();
       setInterval(fetchLogs, 3000);
 
       loadSettings();
+      loadKnowledge();
     </script>
   </body>
 </html>

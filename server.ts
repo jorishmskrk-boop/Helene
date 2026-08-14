@@ -282,6 +282,80 @@ function addLog(type: "user" | "helene" | "system" | "error", text: string, deta
 // Logboek initiële opstartregel
 addLog("system", "Hélène AI Server gestart", `Poort ${PORT}`);
 
+// Pad naar de kennisbank
+const KAMP_INFO_FILE = path.join(process.cwd(), "Kamp_info.md");
+
+// Register van verbonden scherm-clients (index.html) voor broadcast van mededelingen
+const displayClients = new Set<WebSocket>();
+
+// Stuur een bericht naar alle verbonden schermen. Geeft het aantal bereikte schermen terug.
+function broadcastToDisplays(payload: any): number {
+  const data = JSON.stringify(payload);
+  let count = 0;
+  for (const c of displayClients) {
+    if (c.readyState === WebSocket.OPEN) {
+      try {
+        c.send(data);
+        count++;
+      } catch (e) {
+        // Genegeerd: kapotte verbinding wordt bij 'close' opgeruimd
+      }
+    }
+  }
+  return count;
+}
+
+// Splits een langere tekst in korte stukken op zinsgrenzen (max ~180 tekens),
+// zodat de TTS-engine (o.a. de gratis Google TTS met lengtelimiet) het aankan.
+function chunkTextForTTS(text: string): string[] {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  const sentences = clean.match(/[^.!?]+[.!?]*/g) || [clean];
+  const chunks: string[] = [];
+  let current = "";
+  const pushWordwise = (piece: string) => {
+    let buf = "";
+    for (const word of piece.split(" ")) {
+      if ((buf + " " + word).trim().length > 180) {
+        if (buf) chunks.push(buf.trim());
+        buf = word;
+      } else {
+        buf = (buf + " " + word).trim();
+      }
+    }
+    return buf;
+  };
+  for (const s of sentences) {
+    const piece = s.trim();
+    if (!piece) continue;
+    if ((current + " " + piece).trim().length > 180) {
+      if (current) chunks.push(current.trim());
+      current = piece.length > 180 ? pushWordwise(piece) : piece;
+    } else {
+      current = (current + " " + piece).trim();
+    }
+  }
+  if (current) chunks.push(current.trim());
+  return chunks;
+}
+
+// Zet tekst om naar spraak en speel dit af op alle verbonden schermen.
+async function speakToDisplays(text: string): Promise<{ chunks: number; displays: number }> {
+  const settings = getSettings();
+  const parts = chunkTextForTTS(text);
+  // Onderbreek eventuele lopende spraak en toon de mededeling als ondertitel
+  const displays = broadcastToDisplays({ type: "interrupted" });
+  broadcastToDisplays({ type: "subtitle", text });
+  for (const part of parts) {
+    const audioBase64 = await generateTTSAudio(part, settings);
+    if (audioBase64) {
+      broadcastToDisplays({ type: "audio", data: audioBase64 });
+    }
+  }
+  broadcastToDisplays({ type: "turn_complete" });
+  return { chunks: parts.length, displays };
+}
+
 // API Endpoints voor instellingen
 app.get("/api/settings", (req, res) => {
   res.json(getSettings());
@@ -352,11 +426,87 @@ app.post("/api/elevenlabs/test-tts", async (req, res) => {
   }
 });
 
+// Mededeling laten uitspreken door alle verbonden schermen
+app.post("/api/say", async (req, res) => {
+  try {
+    const text = (req.body?.text ?? "").toString().trim();
+    if (!text) {
+      return res.status(400).json({ status: "error", message: "Geen tekst opgegeven." });
+    }
+    if (text.length > 1000) {
+      return res.status(400).json({ status: "error", message: "Bericht te lang (maximaal 1000 tekens)." });
+    }
+    if (displayClients.size === 0) {
+      addLog("error", "Mededeling niet afgespeeld: geen scherm verbonden", text);
+      return res.status(409).json({ status: "error", message: "Geen scherm verbonden. Open eerst Hélène op een scherm (📺)." });
+    }
+    addLog("system", "📢 Mededeling uitgesproken via beheer", text);
+    const result = await speakToDisplays(text);
+    res.json({ status: "ok", ...result });
+  } catch (err: any) {
+    addLog("error", "Fout bij uitspreken mededeling", err?.message || String(err));
+    res.status(500).json({ status: "error", message: err?.message || "Kon mededeling niet uitspreken." });
+  }
+});
+
+// Kennisbank (Kamp_info.md) uitlezen
+app.get("/api/knowledge", (req, res) => {
+  try {
+    const content = fs.existsSync(KAMP_INFO_FILE) ? fs.readFileSync(KAMP_INFO_FILE, "utf-8") : "";
+    res.json({
+      status: "ok",
+      content,
+      bytes: Buffer.byteLength(content, "utf-8"),
+      hasBackup: fs.existsSync(KAMP_INFO_FILE + ".bak"),
+    });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", message: err?.message || "Kon kennisbank niet lezen." });
+  }
+});
+
+// Kennisbank opslaan (maakt eerst een back-up van de vorige versie)
+app.post("/api/knowledge", (req, res) => {
+  try {
+    const content = typeof req.body?.content === "string" ? req.body.content : null;
+    if (content === null) {
+      return res.status(400).json({ status: "error", message: "Geen inhoud opgegeven." });
+    }
+    if (fs.existsSync(KAMP_INFO_FILE)) {
+      fs.copyFileSync(KAMP_INFO_FILE, KAMP_INFO_FILE + ".bak");
+    }
+    fs.writeFileSync(KAMP_INFO_FILE, content, "utf-8");
+    const bytes = Buffer.byteLength(content, "utf-8");
+    addLog("system", "📝 Kennisbank (Kamp_info.md) bijgewerkt via beheer", `${bytes} bytes opgeslagen`);
+    res.json({ status: "ok", bytes, hasBackup: true });
+  } catch (err: any) {
+    addLog("error", "Fout bij opslaan kennisbank", err?.message || String(err));
+    res.status(500).json({ status: "error", message: err?.message || "Kon kennisbank niet opslaan." });
+  }
+});
+
+// Kennisbank herstellen vanaf de laatste back-up
+app.post("/api/knowledge/restore", (req, res) => {
+  try {
+    const bak = KAMP_INFO_FILE + ".bak";
+    if (!fs.existsSync(bak)) {
+      return res.status(404).json({ status: "error", message: "Geen back-up beschikbaar." });
+    }
+    const content = fs.readFileSync(bak, "utf-8");
+    fs.writeFileSync(KAMP_INFO_FILE, content, "utf-8");
+    addLog("system", "↩️ Kennisbank hersteld vanaf back-up");
+    res.json({ status: "ok", content, bytes: Buffer.byteLength(content, "utf-8") });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", message: err?.message || "Kon back-up niet herstellen." });
+  }
+});
+
 
 
 // WebSocket afhandeling voor Gemini Live API audio sessies
 wss.on("connection", (clientWs) => {
   console.log("[SERVER] Nieuwe client verbonden via WebSocket");
+  // Registreer dit scherm zodat mededelingen vanuit beheer hier afgespeeld kunnen worden
+  displayClients.add(clientWs);
 
   let session: any = null;
   let sessionActive = true;
@@ -711,6 +861,7 @@ wss.on("connection", (clientWs) => {
 
   clientWs.on("close", () => {
     sessionActive = false;
+    displayClients.delete(clientWs);
     if (session) {
       try {
         session.close();
