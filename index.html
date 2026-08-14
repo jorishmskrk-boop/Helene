@@ -438,6 +438,80 @@
         transform: translateY(4px) rotate(-6deg) scale(0.95);
       }
 
+      /* ============ EXTRA GEZICHTSUITDRUKKINGEN ============ */
+      /* Zachte overgang voor het kantelen (nieuwsgierig) zonder de centrering te breken */
+      #scoutEyesContainer {
+        transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* EMOTIESTAND: Verbaasd / Wauw — wenkbrauwen hoog, ogen wijd */
+      .eye-wrapper.surprised .left-eyebrow {
+        transform: translateY(-28px) rotate(-2deg) scale(1.22);
+        filter: drop-shadow(0 0 20px var(--accent-color, #38bdf8));
+      }
+      .eye-wrapper.surprised .right-eyebrow {
+        transform: translateY(-28px) rotate(2deg) scale(1.22);
+        filter: drop-shadow(0 0 20px var(--accent-color, #38bdf8));
+      }
+      .eye-wrapper.surprised .scout-eye-svg {
+        transform: scale(1.24);
+        filter: drop-shadow(0 0 34px var(--accent-color, #38bdf8));
+      }
+
+      /* EMOTIESTAND: Meelevend / Verdrietig — binnenkant wenkbrauw omhoog, ogen zakken */
+      .eye-wrapper.sad .left-eyebrow {
+        transform: translateY(-2px) rotate(17deg) scale(1.02);
+        opacity: 0.85;
+      }
+      .eye-wrapper.sad .right-eyebrow {
+        transform: translateY(-2px) rotate(-17deg) scale(1.02);
+        opacity: 0.85;
+      }
+      .eye-wrapper.sad .scout-eye-svg {
+        transform: translateY(6px) scaleY(0.82);
+        filter: drop-shadow(0 0 12px var(--accent-color, #38bdf8)) opacity(0.85);
+      }
+
+      /* EMOTIESTAND: Nieuwsgierig — asymmetrische wenkbrauwen + hoofd kantelt */
+      .eye-wrapper.curious .left-eyebrow {
+        transform: translateY(-20px) rotate(-8deg) scale(1.12);
+      }
+      .eye-wrapper.curious .right-eyebrow {
+        transform: translateY(-2px) rotate(6deg) scale(1);
+      }
+      #scoutEyesContainer.curious {
+        transform: translateX(-50%) rotate(9deg);
+      }
+
+      /* GEBAAR: Knipoog — één oog dicht */
+      .eye-wrapper.wink {
+        animation: none !important;
+        transform: scaleY(0.08) scaleX(1.1) !important;
+      }
+
+      /* GEBAAR: Ja-knikken (verticaal) — centrering blijft behouden */
+      #scoutEyesContainer.nod {
+        animation: nodAnim 0.7s ease-in-out;
+      }
+      @keyframes nodAnim {
+        0%, 100% { transform: translateX(-50%) translateY(0); }
+        25% { transform: translateX(-50%) translateY(14px); }
+        50% { transform: translateX(-50%) translateY(-4px); }
+        75% { transform: translateX(-50%) translateY(10px); }
+      }
+
+      /* GEBAAR: Nee-schudden (horizontaal) — centrering blijft behouden */
+      #scoutEyesContainer.shake {
+        animation: shakeAnim 0.6s ease-in-out;
+      }
+      @keyframes shakeAnim {
+        0%, 100% { transform: translateX(-50%); }
+        20% { transform: translateX(calc(-50% - 16px)); }
+        40% { transform: translateX(calc(-50% + 14px)); }
+        60% { transform: translateX(calc(-50% - 10px)); }
+        80% { transform: translateX(calc(-50% + 8px)); }
+      }
+
       /* Het gecentreerde Canvas voor de golfvorm */
       #canvasContainer {
         position: absolute;

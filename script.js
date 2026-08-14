@@ -215,9 +215,9 @@ function setEyesState(state) {
   const container = document.getElementById("scoutEyesContainer");
   if (!eyeWrappers || eyeWrappers.length === 0) return;
 
-  container?.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping");
+  container?.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "surprised", "sad", "curious");
   eyeWrappers.forEach((eye) => {
-    eye.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "blink");
+    eye.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "blink", "surprised", "sad", "curious");
 
     if (state === "SLEEPING") {
       eye.classList.add("sleeping");
@@ -230,11 +230,83 @@ function setEyesState(state) {
     } else if (state === "HAPPY" || state === "SPEAKING") {
       container?.classList.add("happy");
       eye.classList.add("happy", "speaking");
+    } else if (state === "SURPRISED") {
+      container?.classList.add("surprised");
+      eye.classList.add("surprised", "speaking");
+    } else if (state === "SAD") {
+      container?.classList.add("sad");
+      eye.classList.add("sad");
+    } else if (state === "CURIOUS") {
+      container?.classList.add("curious");
+      eye.classList.add("curious");
     } else if (state === "PUZZLED") {
       container?.classList.add("puzzled");
       eye.classList.add("puzzled");
     }
   });
+}
+
+// ============================================================================
+// AUTOMATISCHE GEZICHTSUITDRUKKINGEN op basis van wat Hélène zegt
+// ============================================================================
+let heleneTurnText = "";
+let turnExpression = "HAPPY";
+let gestureFiredThisTurn = false;
+
+function resetTurnExpression() {
+  heleneTurnText = "";
+  turnExpression = "HAPPY";
+  gestureFiredThisTurn = false;
+}
+
+// Bepaal een blijvende uitdrukking + eventueel een kort gebaar uit de tekst
+function classifyReply(text) {
+  const t = (text || "").toLowerCase();
+  let gesture = null;
+  let expr = "HAPPY";
+
+  if (/\b(nee|niet|geen|nooit|mag niet)\b/.test(t)) gesture = "SHAKE";
+  else if (/\b(ja|jazeker|klopt|inderdaad|precies|zeker|natuurlijk)\b/.test(t)) gesture = "NOD";
+
+  if (t.includes("weet ik niet") || t.includes("weet ik even niet") || /\b(sorry|jammer|helaas)\b/.test(t)) {
+    expr = "SAD";
+  } else if (t.includes("?")) {
+    expr = "CURIOUS";
+  } else if (t.includes("!") || /\b(wauw|wow|geweldig|super|leuk|top|gaaf|jippie)\b/.test(t)) {
+    expr = "SURPRISED";
+  }
+
+  if (!gesture && /\b(hoi|hallo|hey|welkom|dag)\b/.test(t)) gesture = "WINK";
+  return { gesture, expr };
+}
+
+// Kort eenmalig gebaar (knipoog / knikken / schudden)
+function fireGesture(g) {
+  const c = document.getElementById("scoutEyesContainer");
+  if (!c) return;
+  if (g === "WINK") {
+    if (!eyeWrappers || eyeWrappers.length === 0) return;
+    const eye = eyeWrappers[Math.random() < 0.5 ? 0 : eyeWrappers.length - 1];
+    eye.classList.add("wink");
+    setTimeout(() => eye.classList.remove("wink"), 550);
+  } else if (g === "NOD" || g === "SHAKE") {
+    const cls = g === "NOD" ? "nod" : "shake";
+    c.classList.remove(cls);
+    void c.offsetWidth; // forceer herstart van de animatie
+    c.classList.add(cls);
+    setTimeout(() => c.classList.remove(cls), g === "NOD" ? 750 : 650);
+  }
+}
+
+// Roep dit aan met de tot nu toe verzamelde tekst van Hélène
+function applyReplyExpression(fullText) {
+  const { gesture, expr } = classifyReply(fullText);
+  turnExpression = expr;
+  if (isHeleneSpeaking) setEyesState(expr);
+  if (gesture && !gestureFiredThisTurn) {
+    gestureFiredThisTurn = true;
+    fireGesture(gesture);
+  }
 }
 
 // Periodiek knipperen alleen als ze niet slaapt
@@ -312,10 +384,15 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
           subtitlesEl.textContent = `Hélène: "${msg.text}"`;
           subtitlesEl.style.display = CONFIG.SHOW_SUBTITLES ? "block" : "none";
         }
+        // Verzamel de tekst en kies automatisch een passende gezichtsuitdrukking
+        heleneTurnText += " " + (msg.text || "");
+        applyReplyExpression(heleneTurnText);
       } else if (msg.type === "interrupted") {
         log("Hélène onderbroken door gebruiker.");
         stopAudioPlayback();
         isHeleneSpeaking = false;
+        // Verse start voor de volgende uiting (o.a. mededelingen vanuit beheer)
+        resetTurnExpression();
       } else if (msg.type === "turn_complete") {
         log("Hélène klaar met spreken.");
         isHeleneSpeaking = false;
@@ -590,6 +667,8 @@ function stopRecording() {
 
   if (talkArea) talkArea.classList.remove("active");
 
+  // Nieuwe Hélène-beurt begint: reset de uitdrukkings-analyse
+  resetTurnExpression();
   setEyesState("THINKING");
 
   if (scriptProcessor) {
@@ -659,7 +738,7 @@ async function playAudioChunk(base64Data) {
     nextStartTime += buffer.duration;
     activeSources.push(source);
     isHeleneSpeaking = true;
-    setEyesState("HAPPY");
+    setEyesState(turnExpression || "HAPPY");
 
     source.onended = () => {
       const idx = activeSources.indexOf(source);
@@ -722,8 +801,14 @@ function initWaveformVisualizer() {
       targetStateKey = "SPEAKING";
     }
 
-    // Ogen bijwerken naar staat
-    updateEyeState(targetStateKey, smoothedVolume);
+    // Ogen bijwerken naar staat. Tijdens het spreken gebruiken we de
+    // automatisch gekozen gezichtsuitdrukking (blij/verbaasd/meelevend/nieuwsgierig)
+    // in plaats van altijd hetzelfde "spreken".
+    let eyeState = targetStateKey;
+    if (targetStateKey === "SPEAKING") {
+      eyeState = turnExpression || "SPEAKING";
+    }
+    updateEyeState(eyeState, smoothedVolume);
 
     const targetParams = STATE_PARAMS[targetStateKey];
 
