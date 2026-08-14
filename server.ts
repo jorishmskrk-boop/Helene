@@ -171,7 +171,50 @@ async function generateFreeSpeechAudio(text: string, voiceName?: string): Promis
   return null;
 }
 
+// Natuurlijke spraak via de officiële Google Gemini TTS API.
+// Gebruikt dezelfde Gemini-sleutel die al voor de gesprekken wordt gebruikt (geen extra kosten/account).
+// De stemnamen in het beheerscherm (Kore, Puck, Charon, Fenrir, Aoede, Zephyr) zijn precies de
+// officiële Gemini-stemnamen. Geeft WAV-audio terug of null bij een fout (dan volgt de fallback).
+async function generateGeminiTTSAudio(text: string, settings: any): Promise<string | null> {
+  try {
+    if (getGeminiApiKey().length === 0) return null;
+
+    const voiceName =
+      settings.voiceName && String(settings.voiceName).trim().length > 0 ? String(settings.voiceName).trim() : "Kore";
+    const ttsModel = settings.geminiTtsModel || "gemini-2.5-flash-preview-tts";
+    const aiClient = getGenAIClient();
+
+    const response = await aiClient.models.generateContent({
+      model: ttsModel,
+      contents: [{ role: "user", parts: [{ text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName },
+          },
+        },
+      },
+    } as any);
+
+    const parts = (response as any)?.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      const data = part?.inlineData?.data;
+      if (data) {
+        // Gemini levert rauwe 24kHz 16-bit mono PCM; verpak in WAV zodat het scherm het betrouwbaar afspeelt
+        return pcmToWavBase64(data, 24000);
+      }
+    }
+    console.warn("[GEMINI-TTS] Geen audio ontvangen in het antwoord.");
+    return null;
+  } catch (err: any) {
+    console.error("[GEMINI-TTS] Fout bij spraakgeneratie:", err?.message || err);
+    return null;
+  }
+}
+
 async function generateTTSAudio(text: string, settings: any): Promise<string | null> {
+  // 1. ElevenLabs (alleen als expliciet gekozen) — ongewijzigd gedrag
   if (settings.ttsEngine === "elevenlabs") {
     // Koppel bekende stemnamen aan ElevenLabs Voice IDs als er geen specifieke ID is ingevuld
     const voiceNameMap: Record<string, string> = {
@@ -190,7 +233,19 @@ async function generateTTSAudio(text: string, settings: any): Promise<string | n
 
     const elAudio = await generateElevenLabsAudio(text, effectiveSettings);
     if (elAudio) return elAudio;
+    // Bij falen: terugvallen op de gratis stem (zoals voorheen)
+    return await generateFreeSpeechAudio(text, settings.voiceName);
   }
+
+  // 2. Expliciete keuze voor de oude gratis stem (Google Translate TTS)
+  if (settings.ttsEngine === "free") {
+    return await generateFreeSpeechAudio(text, settings.voiceName);
+  }
+
+  // 3. Standaard ("gemini"): probeer de natuurlijke Gemini-stem, val bij een fout
+  //    automatisch terug op de gratis stem — dus nooit slechter dan de huidige werking.
+  const geminiAudio = await generateGeminiTTSAudio(text, settings);
+  if (geminiAudio) return geminiAudio;
   return await generateFreeSpeechAudio(text, settings.voiceName);
 }
 
@@ -246,6 +301,8 @@ function saveSettings(newSettings: any) {
   try {
     const updated = { ...getSettings(), ...newSettings };
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(updated, null, 2), "utf-8");
+    // Ook persistent bewaren in Upstash (indien geconfigureerd)
+    redisSet(REDIS_KEY_SETTINGS, JSON.stringify(updated, null, 2));
     return updated;
   } catch (err) {
     console.error("[SERVER] Fout bij opslaan settings.json:", err);
@@ -284,6 +341,87 @@ addLog("system", "Hélène AI Server gestart", `Poort ${PORT}`);
 
 // Pad naar de kennisbank
 const KAMP_INFO_FILE = path.join(process.cwd(), "Kamp_info.md");
+
+// ===================================================================
+// Persistente opslag via Upstash Redis (optioneel, gratis).
+// Zonder deze omgevingsvariabelen werkt alles gewoon met lokale bestanden.
+// Op Render (tijdelijke schijf) zorgt dit dat wijzigingen aan de kennisbank
+// en instellingen elke deploy/herstart overleven.
+// ===================================================================
+const UPSTASH_URL = (process.env.UPSTASH_REDIS_REST_URL || "").trim();
+const UPSTASH_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
+const REDIS_ENABLED = UPSTASH_URL.length > 0 && UPSTASH_TOKEN.length > 0;
+
+const REDIS_KEY_SETTINGS = "helene:settings";
+const REDIS_KEY_KNOWLEDGE = "helene:knowledge";
+const REDIS_KEY_KNOWLEDGE_BAK = "helene:knowledge_bak";
+
+// Voer één Redis-commando uit via de Upstash REST API (veilig voor grote tekst).
+async function redisCommand(cmd: any[]): Promise<any> {
+  const res = await fetch(UPSTASH_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${UPSTASH_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(cmd),
+  });
+  if (!res.ok) {
+    throw new Error(`Upstash ${res.status}: ${await res.text()}`);
+  }
+  const data = await res.json();
+  return data.result;
+}
+
+async function redisGet(key: string): Promise<string | null> {
+  if (!REDIS_ENABLED) return null;
+  try {
+    const result = await redisCommand(["GET", key]);
+    return typeof result === "string" ? result : null;
+  } catch (err) {
+    console.error(`[REDIS] GET '${key}' mislukt:`, err);
+    return null;
+  }
+}
+
+// Wegschrijven naar Redis (fire-and-forget: mag de gebruiker niet ophouden).
+function redisSet(key: string, value: string): void {
+  if (!REDIS_ENABLED) return;
+  redisCommand(["SET", key, value]).catch((err) => {
+    console.error(`[REDIS] SET '${key}' mislukt:`, err);
+    addLog("error", "Kon wijziging niet opslaan in Upstash", err?.message || String(err));
+  });
+}
+
+// Bij opstarten: haal opgeslagen instellingen/kennisbank uit Upstash en
+// schrijf ze naar de lokale bestanden, zodat de rest van de server (die
+// synchroon leest) meteen de bewaarde versie gebruikt.
+async function hydrateFromRedis(): Promise<void> {
+  if (!REDIS_ENABLED) {
+    console.log("[REDIS] Geen Upstash geconfigureerd — lokale bestanden worden gebruikt.");
+    return;
+  }
+  console.log("[REDIS] Upstash geconfigureerd — bewaarde gegevens ophalen...");
+  try {
+    const savedSettings = await redisGet(REDIS_KEY_SETTINGS);
+    if (savedSettings) {
+      fs.writeFileSync(SETTINGS_FILE, savedSettings, "utf-8");
+      console.log("[REDIS] Instellingen hersteld uit Upstash.");
+    }
+    const savedKnowledge = await redisGet(REDIS_KEY_KNOWLEDGE);
+    if (savedKnowledge !== null) {
+      fs.writeFileSync(KAMP_INFO_FILE, savedKnowledge, "utf-8");
+      console.log(`[REDIS] Kennisbank hersteld uit Upstash (${Buffer.byteLength(savedKnowledge, "utf-8")} bytes).`);
+    }
+    const savedBak = await redisGet(REDIS_KEY_KNOWLEDGE_BAK);
+    if (savedBak !== null) {
+      fs.writeFileSync(KAMP_INFO_FILE + ".bak", savedBak, "utf-8");
+    }
+    addLog("system", "☁️ Gegevens hersteld uit Upstash", "Instellingen en kennisbank geladen");
+  } catch (err) {
+    console.error("[REDIS] Fout bij ophalen uit Upstash:", err);
+  }
+}
 
 // Register van verbonden scherm-clients (index.html) voor broadcast van mededelingen
 const displayClients = new Set<WebSocket>();
@@ -394,6 +532,7 @@ app.get("/api/status", (req, res) => {
     status: "ok",
     hasGeminiKey,
     hasElevenLabsKey,
+    persistentStorage: REDIS_ENABLED,
     activeModel: getSettings().modelName || "gemini-2.5-flash",
     activeEngine: getSettings().ttsEngine || "gemini",
   });
@@ -471,11 +610,16 @@ app.post("/api/knowledge", (req, res) => {
     if (content === null) {
       return res.status(400).json({ status: "error", message: "Geen inhoud opgegeven." });
     }
+    let previousContent: string | null = null;
     if (fs.existsSync(KAMP_INFO_FILE)) {
+      previousContent = fs.readFileSync(KAMP_INFO_FILE, "utf-8");
       fs.copyFileSync(KAMP_INFO_FILE, KAMP_INFO_FILE + ".bak");
     }
     fs.writeFileSync(KAMP_INFO_FILE, content, "utf-8");
     const bytes = Buffer.byteLength(content, "utf-8");
+    // Persistent bewaren in Upstash (nieuwe versie + back-up)
+    redisSet(REDIS_KEY_KNOWLEDGE, content);
+    if (previousContent !== null) redisSet(REDIS_KEY_KNOWLEDGE_BAK, previousContent);
     addLog("system", "📝 Kennisbank (Kamp_info.md) bijgewerkt via beheer", `${bytes} bytes opgeslagen`);
     res.json({ status: "ok", bytes, hasBackup: true });
   } catch (err: any) {
@@ -493,6 +637,8 @@ app.post("/api/knowledge/restore", (req, res) => {
     }
     const content = fs.readFileSync(bak, "utf-8");
     fs.writeFileSync(KAMP_INFO_FILE, content, "utf-8");
+    // Herstelde versie ook persistent bewaren
+    redisSet(REDIS_KEY_KNOWLEDGE, content);
     addLog("system", "↩️ Kennisbank hersteld vanaf back-up");
     res.json({ status: "ok", content, bytes: Buffer.byteLength(content, "utf-8") });
   } catch (err: any) {
@@ -878,6 +1024,9 @@ wss.on("connection", (clientWs) => {
 
 // Vite of Statische Express server starten
 async function startServer() {
+  // Bewaarde instellingen/kennisbank uit Upstash ophalen vóór we requests afhandelen
+  await hydrateFromRedis();
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
