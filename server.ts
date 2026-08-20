@@ -848,7 +848,6 @@ wss.on("connection", (clientWs, request: any) => {
       activeTurnController = null;
     }
     textBuffer = "";
-    pendingAudioBuffers = [];
     currentSession.isSpeaking = false;
     if (activeTurnSessionId === sessionId) {
       activeTurnSessionId = null;
@@ -1406,6 +1405,9 @@ wss.on("connection", (clientWs, request: any) => {
 
       // 3. Einde beurt signaal van de gebruiker (knop losgelaten)
       else if (data.type === "end_turn") {
+        const combinedBuffer = Buffer.concat(pendingAudioBuffers);
+        pendingAudioBuffers = [];
+
         // VOORRANGSLOGICA (Optie 2 Single Master Lockout):
         if (currentSession.isMaster) {
           // Master heeft altijd voorrang! Als een neven-scherm bezig is, breek het af.
@@ -1436,7 +1438,6 @@ wss.on("connection", (clientWs, request: any) => {
                   : "Hélène is momenteel bezet met een ander gesprek..."
               }));
             }
-            pendingAudioBuffers = [];
             return;
           }
           activeTurnSessionId = sessionId;
@@ -1454,9 +1455,7 @@ wss.on("connection", (clientWs, request: any) => {
           }
           liveTurnStarted = false;
         } else {
-          console.log(`[SERVER] Gebruiker beurt beëindigd. Audio chunks: ${pendingAudioBuffers.length}`);
-          const combinedBuffer = Buffer.concat(pendingAudioBuffers);
-          pendingAudioBuffers = [];
+          console.log(`[SERVER] Gebruiker beurt beëindigd. Audio buffer: ${combinedBuffer.length} bytes`);
 
           const combinedAudioBase64 = combinedBuffer.toString("base64");
           const durationSec = (combinedBuffer.length / 32000).toFixed(1);
