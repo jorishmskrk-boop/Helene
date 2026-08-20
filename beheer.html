@@ -277,6 +277,20 @@
           <div class="tile"><span class="stripe"></span><div class="lbl">Opslag</div><div class="val" id="tStorage">…</div></div>
         </div>
         <div class="card">
+          <div class="card-head">
+            <h2><span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>Verbonden apparaten &amp; Live Sessies</h2>
+            <button class="btn ghost" id="disconnectAllClientsBtn" style="padding:6px 12px;font-size:.8rem;border-color:var(--crit);color:var(--crit);">✂️ Sluit alle neven-schermen</button>
+          </div>
+          <p class="help">Overzicht van het actieve Hoofdscherm (<code>/hoofdscherm</code>) en verbonden neven-schermen. Sluit ongewenste sessies op afstand.</p>
+          <div id="masterStatusBanner" style="padding:10px 14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);margin-bottom:14px;font-size:.88rem;font-weight:600;display:flex;align-items:center;justify-content:space-between;">
+            <div>📺 <strong>Hoofdscherm:</strong> <span id="masterStatusText">Laden…</span></div>
+          </div>
+          <div id="sessionsList" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="color:var(--muted);font-size:.85rem;">Sessies laden…</div>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-head"><h2><span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 14-7v16L3 13v-2Z"/><path d="M17 8a3 3 0 0 1 0 8"/></svg></span>Snelle mededeling</h2></div>
           <p class="help">Typ iets en laat het meteen omroepen op alle verbonden schermen.</p>
           <textarea id="dashSay" rows="2" maxlength="1000" placeholder="Bijv. Over vijf minuten verzamelen bij de vlaggenmast!"></textarea>
@@ -515,6 +529,59 @@
     const sc = $('sayScreens');
     sc.innerHTML = `<span class="livedot${dot?'':' off'}" style="width:7px;height:7px"></span> ${n} scherm${n===1?'':'en'} ${n===1?'luistert':'luisteren'}`;
     sc.className = 'chip '+(dot?'good':'off');
+    loadSessions();
+  }
+
+  async function loadSessions(){
+    const { ok, data } = await api('/api/sessions');
+    if(!ok || !data) return;
+
+    const masterSess = (data.sessions||[]).find(s=>s.isMaster);
+    if (masterSess) {
+      $('masterStatusText').innerHTML = `<span class="chip good">Actief (/hoofdscherm)</span> · IP: ${masterSess.ip} · ${masterSess.userAgent.substring(0,40)}`;
+    } else {
+      $('masterStatusText').innerHTML = `<span class="chip warn">Geen actief Hoofdscherm</span> · Open <a href="/hoofdscherm" target="_blank" style="text-decoration:underline;color:var(--accent);">/hoofdscherm</a> op de TV`;
+    }
+
+    const list = $('sessionsList');
+    if (!list) return;
+    list.innerHTML = '';
+    const clients = (data.sessions||[]).filter(s=>!s.isMaster);
+
+    if (clients.length === 0) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:6px 0;">Geen neven-schermen verbonden.</div>';
+    } else {
+      clients.forEach(c => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-size:.84rem;';
+        const mins = Math.max(1, Math.round((Date.now() - c.connectedAt) / 60000));
+        row.innerHTML = `
+          <div>
+            <strong>📱 Neven-scherm (${c.ip})</strong>
+            <div style="font-size:.76rem;color:var(--muted);margin-top:2px;">${c.userAgent.substring(0,45)} · ${mins}m online ${c.isSpeaking ? '· <span class="chip good" style="font-size:.65rem;">Aan het woord</span>' : ''}</div>
+          </div>
+          <button class="btn ghost disc-btn" data-id="${c.id}" style="padding:4px 10px;font-size:.78rem;border-color:var(--crit);color:var(--crit);">Verbreek</button>
+        `;
+        list.appendChild(row);
+      });
+
+      list.querySelectorAll('.disc-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const res = await api('/api/sessions/disconnect', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id }) });
+          if(res.ok) { toast('Sessie verbroken'); loadStatus(); }
+        });
+      });
+    }
+  }
+
+  const discAllBtn = $('disconnectAllClientsBtn');
+  if(discAllBtn) {
+    discAllBtn.addEventListener('click', async () => {
+      if(!confirm('Weet je zeker dat je alle neven-schermen wilt loskoppelen?')) return;
+      const res = await api('/api/sessions/disconnect', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ disconnectAllClients: true }) });
+      if(res.ok) { toast('Alle neven-schermen losgekoppeld'); loadStatus(); }
+    });
   }
 
   // ---------- instellingen laden ----------

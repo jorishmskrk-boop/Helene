@@ -449,6 +449,20 @@ async function hydrateFromRedis(): Promise<void> {
 // Register van verbonden scherm-clients (index.html) voor broadcast van mededelingen
 const displayClients = new Set<WebSocket>();
 
+interface ClientSession {
+  id: string;
+  ws: WebSocket;
+  isMaster: boolean;
+  ip: string;
+  userAgent: string;
+  connectedAt: number;
+  isSpeaking: boolean;
+}
+
+const connectedSessions = new Map<string, ClientSession>();
+let activeTurnSessionId: string | null = null;
+let globalCancelActiveTurn: (() => void) | null = null;
+
 // Stuur een bericht naar alle verbonden schermen. Geeft het aantal bereikte schermen terug.
 function broadcastToDisplays(payload: any): number {
   const data = JSON.stringify(payload);
@@ -552,16 +566,78 @@ app.get("/api/status", (req, res) => {
   const s = getSettings();
   const hasGeminiKey = getGeminiApiKey().length > 0;
   const hasElevenLabsKey = (process.env.ELEVENLABS_API_KEY || s.elevenlabsApiKey || "").length > 0;
+  const sessionsList = Array.from(connectedSessions.values());
+  const hasMaster = sessionsList.some((sess) => sess.isMaster);
   res.json({
     status: "ok",
     hasGeminiKey,
     hasElevenLabsKey,
     persistentStorage: REDIS_ENABLED,
     connectedScreens: displayClients.size,
+    hasMaster,
     activeModel: s.modelName || "gemini-2.5-flash",
     activeEngine: s.ttsEngine || "gemini",
     activeVoice: s.voiceName || "Kore",
   });
+});
+
+// API Endpoints voor Sessiebeheer (Optie A & B)
+app.get("/api/sessions", (req, res) => {
+  const sessionsList = Array.from(connectedSessions.values()).map((s) => ({
+    id: s.id,
+    isMaster: s.isMaster,
+    ip: s.ip,
+    userAgent: s.userAgent,
+    connectedAt: s.connectedAt,
+    isSpeaking: s.isSpeaking,
+  }));
+  const hasMaster = sessionsList.some((s) => s.isMaster);
+  res.json({
+    status: "ok",
+    hasMaster,
+    activeTurnSessionId,
+    totalConnected: sessionsList.length,
+    sessions: sessionsList,
+  });
+});
+
+app.post("/api/sessions/disconnect", (req, res) => {
+  try {
+    const { id, disconnectAllClients } = req.body || {};
+
+    if (disconnectAllClients) {
+      let count = 0;
+      for (const [sId, sess] of Array.from(connectedSessions.entries())) {
+        if (!sess.isMaster) {
+          if (sess.ws.readyState === WebSocket.OPEN) {
+            sess.ws.send(JSON.stringify({ type: "kicked_by_admin", message: "Sessie beëindigd door beheerder." }));
+            try { sess.ws.close(4001, "Disconnected by admin"); } catch (e) {}
+          }
+          displayClients.delete(sess.ws);
+          connectedSessions.delete(sId);
+          count++;
+        }
+      }
+      addLog("system", `✂️ Alle ${count} neven-schermen losgekoppeld via beheer`);
+      return res.json({ status: "ok", count });
+    }
+
+    if (id && connectedSessions.has(id)) {
+      const sess = connectedSessions.get(id)!;
+      if (sess.ws.readyState === WebSocket.OPEN) {
+        sess.ws.send(JSON.stringify({ type: "kicked_by_admin", message: "Sessie beëindigd door beheerder." }));
+        try { sess.ws.close(4001, "Disconnected by admin"); } catch (e) {}
+      }
+      displayClients.delete(sess.ws);
+      connectedSessions.delete(id);
+      addLog("system", `✂️ Scherm ${id} (${sess.ip}) losgekoppeld via beheer`);
+      return res.json({ status: "ok", disconnectedId: id });
+    }
+
+    res.status(404).json({ status: "error", message: "Sessie niet gevonden." });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", message: err?.message || "Fout bij ontkoppelen sessie." });
+  }
 });
 
 // Test-endpoint voor de ACTIEVE stem (ongeacht engine): genereert een kort
@@ -702,10 +778,43 @@ app.post("/api/knowledge/restore", (req, res) => {
 
 
 // WebSocket afhandeling voor Gemini Live API audio sessies
-wss.on("connection", (clientWs) => {
+wss.on("connection", (clientWs, request: any) => {
   console.log("[SERVER] Nieuwe client verbonden via WebSocket");
-  // Registreer dit scherm zodat mededelingen vanuit beheer hier afgespeeld kunnen worden
   displayClients.add(clientWs);
+
+  const host = request?.headers?.host || "localhost";
+  const reqUrl = new URL(request?.url || "", `http://${host}`);
+  const requestedMaster = reqUrl.searchParams.get("isMaster") === "true";
+  const clientIp = (request?.headers?.["x-forwarded-for"] as string || request?.socket?.remoteAddress || "127.0.0.1").split(",")[0].trim();
+  const userAgent = (request?.headers?.["user-agent"] || "Onbekend").substring(0, 80);
+  const sessionId = Math.random().toString(36).substring(2, 10);
+
+  // Optie 2: Controleer of er AL een actief Hoofdscherm verbonden is
+  let isMaster = false;
+  const existingMaster = Array.from(connectedSessions.values()).find((s) => s.isMaster && s.ws.readyState === WebSocket.OPEN);
+
+  if (requestedMaster) {
+    if (existingMaster) {
+      isMaster = false;
+      console.log(`[SERVER] 🔒 Hoofdscherm-aanvraag geweigerd voor ${sessionId} (IP: ${clientIp}) — Al een actief Hoofdscherm (${existingMaster.ip})`);
+      addLog("system", `🔒 Hoofdscherm-aanvraag geweigerd (${clientIp})`, `Al een actief Hoofdscherm: ${existingMaster.ip}`);
+    } else {
+      isMaster = true;
+      console.log(`[SERVER] 📺 Nieuw Hoofdscherm geactiveerd: ${sessionId} (IP: ${clientIp})`);
+      addLog("system", "📺 Nieuw Hoofdscherm geactiveerd (/hoofdscherm)", `IP: ${clientIp}`);
+    }
+  }
+
+  const currentSession: ClientSession = {
+    id: sessionId,
+    ws: clientWs,
+    isMaster,
+    ip: clientIp,
+    userAgent,
+    connectedAt: Date.now(),
+    isSpeaking: false,
+  };
+  connectedSessions.set(sessionId, currentSession);
 
   let session: any = null;
   let sessionActive = true;
@@ -716,17 +825,13 @@ wss.on("connection", (clientWs) => {
   let audioBytesSent = 0;
 
   // ---- Live-modus (Gemini Live API) state ----
-  // liveMode = de beheerder koos ttsEngine "live". liveSession = de open Live-verbinding.
-  // Zolang liveSession bestaat lopen alle audio én antwoorden via die ene stream
-  // (geen aparte TTS-calls). Lukt het openen niet, dan valt liveMode terug op
-  // false en gebruikt de server automatisch de gewone streaming-flow.
   let liveMode = false;
   let liveSession: any = null;
-  let liveTurnStarted = false; // is activityStart voor de huidige beurt al verstuurd?
-  let liveTurnStart = 0; // tijdstip waarop de beurt (activityEnd) begon, voor tijdmeting
+  let liveTurnStarted = false;
+  let liveTurnStart = 0;
   let liveFirstAudioAt = 0;
-  let liveHeleneText = ""; // verzamelde output-transcriptie van Hélène deze beurt
-  let liveUserText = ""; // verzamelde input-transcriptie van de gebruiker deze beurt
+  let liveHeleneText = "";
+  let liveUserText = "";
 
   let textBuffer = "";
   let debounceTimer: NodeJS.Timeout | null = null;
@@ -744,6 +849,10 @@ wss.on("connection", (clientWs) => {
     }
     textBuffer = "";
     pendingAudioBuffers = [];
+    currentSession.isSpeaking = false;
+    if (activeTurnSessionId === sessionId) {
+      activeTurnSessionId = null;
+    }
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
@@ -1223,8 +1332,8 @@ wss.on("connection", (clientWs) => {
 
       // 1. Sessie starten
       if (data.type === "start_session") {
-        console.log("[SERVER] Sessie gestart door client.");
-        addLog("system", "WebSocket spraaksessie gestart");
+        console.log(`[SERVER] Sessie gestart door client ${sessionId} (Master: ${currentSession.isMaster}).`);
+        addLog("system", `WebSocket spraaksessie gestart (${currentSession.isMaster ? "Hoofdscherm" : "Neven-scherm"})`);
         cancelActiveTurn();
         if (session) {
           try { session.close(); } catch (e) {}
@@ -1233,9 +1342,22 @@ wss.on("connection", (clientWs) => {
         pendingAudioBuffers = [];
         textBuffer = "";
 
-        // Bepaal aan de hand van de beheer-keuze of we in Live-modus draaien.
-        // Alleen bij ttsEngine === "live" openen we een Gemini Live-sessie;
-        // elke andere stem gebruikt ongewijzigd de bestaande flow + losse TTS.
+        if (requestedMaster && !currentSession.isMaster && existingMaster) {
+          if (clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(JSON.stringify({
+              type: "master_locked",
+              message: `Er is al een actief Hoofdscherm verbonden (${existingMaster.ip}). Dit scherm werkt als neven-scherm.`
+            }));
+          }
+        } else if (currentSession.isMaster) {
+          if (clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(JSON.stringify({
+              type: "master_granted",
+              message: "Dit scherm is ingesteld als het actieve Hoofdscherm."
+            }));
+          }
+        }
+
         const engine = getSettings().ttsEngine || "gemini";
         if (engine === "live") {
           liveMode = await startLiveSession();
@@ -1251,7 +1373,7 @@ wss.on("connection", (clientWs) => {
         }
 
         if (clientWs.readyState === WebSocket.OPEN) {
-          clientWs.send(JSON.stringify({ type: "session_started" }));
+          clientWs.send(JSON.stringify({ type: "session_started", isMaster: currentSession.isMaster }));
         }
       }
 
@@ -1259,9 +1381,6 @@ wss.on("connection", (clientWs) => {
       else if (data.type === "audio_input" && data.audio) {
         audioBytesSent += Math.round((data.audio.length * 3) / 4);
         if (liveMode && liveSession) {
-          // Live-modus: stuur de rauwe 16kHz PCM direct door naar Gemini Live.
-          // Bij het eerste fragment van een beurt markeren we het begin van de
-          // spraak (push-to-talk met handmatige spraakdetectie).
           try {
             if (!liveTurnStarted) {
               liveTurnStarted = true;
@@ -1276,7 +1395,6 @@ wss.on("connection", (clientWs) => {
             console.error("[SERVER] Fout bij doorsturen Live-audio:", e);
           }
         } else {
-          // Standaardflow: bufferen tot de beurt eindigt.
           try {
             const rawBuf = Buffer.from(data.audio, "base64");
             if (rawBuf.length > 0) {
@@ -1288,8 +1406,44 @@ wss.on("connection", (clientWs) => {
 
       // 3. Einde beurt signaal van de gebruiker (knop losgelaten)
       else if (data.type === "end_turn") {
+        // VOORRANGSLOGICA (Optie 2 Single Master Lockout):
+        if (currentSession.isMaster) {
+          // Master heeft altijd voorrang! Als een neven-scherm bezig is, breek het af.
+          if (activeTurnSessionId && activeTurnSessionId !== sessionId) {
+            const activeSess = connectedSessions.get(activeTurnSessionId);
+            if (activeSess && !activeSess.isMaster && activeSess.ws.readyState === WebSocket.OPEN) {
+              activeSess.ws.send(JSON.stringify({
+                type: "interrupted_by_master",
+                message: "Het Hoofdscherm heeft voorrang gekregen."
+              }));
+              addLog("system", "⚡ Hoofdscherm heeft voorrang genomen", `Beurt van neven-scherm (${activeSess.ip}) geannuleerd`);
+            }
+          }
+          cancelActiveTurn();
+          activeTurnSessionId = sessionId;
+          currentSession.isSpeaking = true;
+        } else {
+          // Neven-scherm: controleer of het Hoofdscherm (of ander scherm) in gesprek is
+          if (activeTurnSessionId && activeTurnSessionId !== sessionId) {
+            const activeSess = connectedSessions.get(activeTurnSessionId);
+            const isMasterBusy = activeSess ? activeSess.isMaster : false;
+            console.log(`[SERVER] Neven-scherm ${sessionId} geblokkeerd; ${isMasterBusy ? "Hoofdscherm" : "Ander scherm"} is in gesprek.`);
+            if (clientWs.readyState === WebSocket.OPEN) {
+              clientWs.send(JSON.stringify({
+                type: "busy",
+                message: isMasterBusy
+                  ? "Hélène is momenteel in gesprek op het Hoofdscherm..."
+                  : "Hélène is momenteel bezet met een ander gesprek..."
+              }));
+            }
+            pendingAudioBuffers = [];
+            return;
+          }
+          activeTurnSessionId = sessionId;
+          currentSession.isSpeaking = true;
+        }
+
         if (liveMode && liveSession) {
-          // Live-modus: sluit de spraak af; Gemini antwoordt via de callbacks.
           console.log("[SERVER] Gebruiker beurt beëindigd (Live-modus).");
           try {
             if (liveTurnStarted) {
@@ -1344,6 +1498,13 @@ wss.on("connection", (clientWs) => {
   clientWs.on("close", () => {
     sessionActive = false;
     displayClients.delete(clientWs);
+    connectedSessions.delete(sessionId);
+    if (activeTurnSessionId === sessionId) {
+      activeTurnSessionId = null;
+    }
+    if (currentSession.isMaster) {
+      addLog("system", "📺 Hoofdscherm verbinding gesloten");
+    }
     if (liveSession) {
       try { liveSession.close(); } catch (e) {}
       liveSession = null;
@@ -1364,7 +1525,6 @@ wss.on("connection", (clientWs) => {
 
 // Vite of Statische Express server starten
 async function startServer() {
-  // Bewaarde instellingen/kennisbank uit Upstash ophalen vóór we requests afhandelen
   await hydrateFromRedis();
 
   if (process.env.NODE_ENV !== "production") {
@@ -1373,7 +1533,10 @@ async function startServer() {
       appType: "spa",
     });
 
-    // Express route voor /beheer en /beheer.html
+    app.get(["/hoofdscherm", "/hoofdscherm.html"], (req, res) => {
+      res.sendFile(path.join(process.cwd(), "index.html"));
+    });
+
     app.get(["/beheer", "/beheer.html"], (req, res) => {
       res.sendFile(path.join(process.cwd(), "beheer.html"));
     });
@@ -1381,6 +1544,10 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
+
+    app.get(["/hoofdscherm", "/hoofdscherm.html"], (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
 
     app.get(["/beheer", "/beheer.html"], (req, res) => {
       res.sendFile(path.join(distPath, "beheer.html"));

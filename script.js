@@ -338,9 +338,10 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
   setConnectionState("connecting", "Verbinden...");
   hideError();
 
+  const isMaster = window.location.pathname.includes("hoofdscherm");
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = `${protocol}//${location.host}/ws/live`;
-  log(`Verbinden met WebSocket server op ${wsUrl}...`);
+  const wsUrl = `${protocol}//${location.host}/ws/live?isMaster=${isMaster ? "true" : "false"}`;
+  log(`Verbinden met WebSocket server op ${wsUrl} (Master: ${isMaster})...`);
 
   ws = new WebSocket(wsUrl);
 
@@ -350,7 +351,7 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
     isConnecting = false;
     isOffline = false;
     updateSleepState();
-    setConnectionState("online", "Verbonden");
+    setConnectionState("online", isMaster ? "Hoofdscherm Verbonden" : "Verbonden (Neven-scherm)");
     hideError();
 
     // Start de Gemini Live sessie
@@ -366,6 +367,45 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         isSessionActive = true;
         sessionStartTime = Date.now();
         resetIdleTimer();
+      } else if (msg.type === "master_locked") {
+        log(`🔒 Hoofdscherm Lock: ${msg.message}`);
+        setConnectionState("online", "Neven-scherm (Hoofdscherm reeds actief)");
+        if (subtitlesEl) {
+          subtitlesEl.textContent = "🔒 Er is al een actief Hoofdscherm op een ander apparaat. Dit scherm werkt als neven-scherm.";
+          subtitlesEl.style.display = CONFIG.SHOW_SUBTITLES ? "block" : "none";
+        }
+      } else if (msg.type === "master_granted") {
+        log("📺 Dit scherm is geactiveerd als het Hoofdscherm.");
+        setConnectionState("online", "📺 Hoofdscherm Actief");
+      } else if (msg.type === "interrupted_by_master") {
+        log("⚡ Beurt onderbroken: Het Hoofdscherm heeft voorrang gekregen.");
+        stopRecording();
+        stopAudioPlayback();
+        isHeleneSpeaking = false;
+        setStatusText("Hoofdscherm heeft voorrang gekregen");
+        if (subtitlesEl) {
+          subtitlesEl.textContent = "⚡ Het Hoofdscherm heeft voorrang gekregen.";
+          subtitlesEl.style.display = CONFIG.SHOW_SUBTITLES ? "block" : "none";
+        }
+      } else if (msg.type === "busy") {
+        log(`⚠️ Server is bezet: ${msg.message}`);
+        stopRecording();
+        stopAudioPlayback();
+        setStatusText(msg.message || "Hélène is momenteel in gesprek...");
+        if (subtitlesEl) {
+          subtitlesEl.textContent = msg.message || "Hélène is momenteel in gesprek...";
+          subtitlesEl.style.display = CONFIG.SHOW_SUBTITLES ? "block" : "none";
+        }
+      } else if (msg.type === "kicked_by_admin") {
+        log("✂️ Verbreekt door beheerder.");
+        stopRecording();
+        stopAudioPlayback();
+        if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+        setConnectionState("offline", "Losgekoppeld door beheer");
+        if (subtitlesEl) {
+          subtitlesEl.textContent = "✂️ Verbinding verbroken door de beheerder.";
+          subtitlesEl.style.display = CONFIG.SHOW_SUBTITLES ? "block" : "none";
+        }
       } else if (msg.type === "audio") {
         // Audio van Hélène ontvangen
         if (isRecording || userWantsRecording) {
