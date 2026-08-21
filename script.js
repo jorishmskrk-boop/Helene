@@ -3,7 +3,7 @@
 // Dynamisch geladen vanuit /api/settings (beheerd via /beheer)
 // ============================================================================
 let CONFIG = {
-  MODEL_NAME: "gemini-2.0-flash-exp",
+  MODEL_NAME: "gemini-2.5-flash",
   VOICE_NAME: "Kore",
   SYSTEM_INSTRUCTION: `Je bent Hélène, de digitale gids van een scoutingkamp.`,
   IDLE_TIMEOUT_MS: 45000,
@@ -695,8 +695,11 @@ async function startRecording() {
     }
   };
 
+  const zeroGain = inputAudioCtx.createGain();
+  zeroGain.gain.value = 0;
   source.connect(scriptProcessor);
-  scriptProcessor.connect(inputAudioCtx.destination);
+  scriptProcessor.connect(zeroGain);
+  zeroGain.connect(inputAudioCtx.destination);
 
   isRecording = true;
   setEyesState("LISTENING");

@@ -531,6 +531,17 @@ async function speakToDisplays(text: string): Promise<{ chunks: number; displays
   return { chunks: parts.length, displays };
 }
 
+// API Endpoint voor beheerders-authenticatie (Wachtwoord: Kamp2026!)
+app.post("/api/login", (req, res) => {
+  const { password } = req.body || {};
+  if (password === "Kamp2026!") {
+    addLog("system", "🔐 Succesvol ingelogd op beheerdashboard");
+    return res.json({ status: "ok", authenticated: true });
+  }
+  addLog("error", "🔒 Mislukte inlogpoging op beheerdashboard", "Onjuist wachtwoord ingevoerd");
+  return res.status(401).json({ status: "error", message: "Onjuist wachtwoord." });
+});
+
 // API Endpoints voor instellingen
 app.get("/api/settings", (req, res) => {
   res.json(getSettings());
@@ -1017,8 +1028,16 @@ wss.on("connection", (clientWs, request: any) => {
       }
 
       // 4. Onderbreking (barge-in): laat het scherm de wachtrij legen
-      if (sc.interrupted && clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(JSON.stringify({ type: "interrupted" }));
+      if (sc.interrupted) {
+        const user = liveUserText.trim();
+        if (user) addLog("user", `🗣️ Gebruiker zei: "${user}"`, "Live-transcriptie (onderbroken)");
+        const answer = liveHeleneText.trim();
+        if (answer) addLog("helene", `🎙️ Hélène: "${answer}"`, `Live-modus (${liveSession?._model || "live"}) (onderbroken)`);
+        liveHeleneText = "";
+        liveUserText = "";
+        if (clientWs.readyState === WebSocket.OPEN) {
+          clientWs.send(JSON.stringify({ type: "interrupted" }));
+        }
       }
 
       // 5. Beurt klaar: log en sluit netjes af
@@ -1085,18 +1104,12 @@ wss.on("connection", (clientWs, request: any) => {
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
           systemInstruction,
-          // Google Search grounding voor actuele info (weer/nieuws). In Live is de
-          // ondersteuning modelafhankelijk; wil je later een hybride fallback naar
-          // de gewone flow, dan is dit de plek om dat aan te haken.
           tools: [{ googleSearch: {} }],
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          // Push-to-talk: automatische spraakdetectie uit, wij sturen zelf
-          // activityStart (eerste audio) en activityEnd (knop losgelaten).
           realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
         },
       });
-      // Onthoud het model op de sessie voor de logregel
       try { (liveSession as any)._model = liveModelName; } catch (e) {}
       console.log(`[SERVER] Live-modus actief (${liveModelName}, stem ${voiceName}).`);
       return true;
@@ -1109,7 +1122,7 @@ wss.on("connection", (clientWs, request: any) => {
   }
 
   // Hulpfunctie voor verwerken van turn via Gemini Streaming API
-  async function handleStreamingTurn(audioBase64?: string, customInstruction?: string, modelOverride?: string) {
+  async function handleStreamingTurn(audioBase64?: string, customInstruction?: string, modelOverride?: string, sampleRate = 16000) {
     cancelActiveTurn();
     const turnController = new AbortController();
     activeTurnController = turnController;
@@ -1123,108 +1136,103 @@ wss.on("connection", (clientWs, request: any) => {
       const systemInstruction = buildSystemInstruction(baseInstruction, kampInfoText);
 
       const activeModel = modelOverride || currentSettings.modelName || "gemini-2.5-flash";
-      console.log(`[SERVER] Turn verwerken met Gemini streaming (${activeModel})... (Historie lengte: ${sessionConversationHistory.length})`);
+      console.log(`[SERVER] Turn verwerken met Gemini streaming (${activeModel}, ${sampleRate}Hz)... (Historie lengte: ${sessionConversationHistory.length})`);
       const aiClient = getGenAIClient();
 
-      const hasValidAudio = audioBase64 && audioBase64.length >= 1000;
+      // Drempelwaarde voor echte spraak (minimaal ~0.25s audio)
+      const minBytes = Math.round((sampleRate * 2) * 0.25);
+      const hasValidAudio = audioBase64 && audioBase64.length >= minBytes;
 
       if (hasValidAudio) {
-        const wavBase64 = pcmToWavBase64(audioBase64, 16000);
-        console.log(`[SERVER] Valid WAV audio buffer sent directly to Gemini (${wavBase64.length} chars base64)`);
+        const wavBase64 = pcmToWavBase64(audioBase64, sampleRate);
+        console.log(`[SERVER] Valid WAV audio buffer received (${wavBase64.length} chars base64, ${sampleRate}Hz), running fast STT...`);
 
-        // Bewaar een verwijzing naar deze beurt. De audio wordt alleen voor DEZE
-        // beurt meegestuurd; zodra de transcriptie klaar is vervangen we de audio
-        // door tekst, zodat de geschiedenis niet volloopt met zware audio-opnames
-        // (anders wordt elke volgende vraag steeds trager om te "verstaan").
-        const userTurnEntry: { role: "user"; parts: any[] } = {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: "audio/wav",
-                data: wavBase64,
+        // 1. FAST STT met gemini-2.5-flash VÓÓR antwoord-generatie
+        // Dit garandeert dat Hélène de exacte geschreven Nederlandse tekst leest en 100% begrijpt.
+        const sttStart = Date.now();
+        let userTranscription = "";
+        try {
+          const sttRes = await aiClient.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: "audio/wav",
+                      data: wavBase64,
+                    },
+                  },
+                  {
+                    text: "Je bent een uiterst nauwkeurige Nederlandse spraakherkenner voor Hélène, een digitale gids op een scoutingkamp. Luister heel aandachtig naar de gesproken audio. Transcribeer de gesproken Nederlandse woorden exact letterlijk. Houd rekening met scoutingtermen (zoals Hélène, scouting, kamp, speurtocht, welpen, scouts, verkenners, tenten, kampvuur). Geef uitsluitend de letterlijke transcriptie terug, niks anders. Als er echt geen spraak te horen is of alleen stilte/ruis, antwoord dan met '[Geen verstaanbare spraak]'.",
+                  },
+                ],
               },
-            },
-            {
-              text: "Je hebt zojuist gesproken audio van de gebruiker ontvangen. Luister heel aandachtig naar de audio in de bijlage. Antwoord direct inhoudelijk en enthousiast op wat de gebruiker vraagt op basis van ons eerdere gesprek en het Kamp Handboek (maximaal 2 korte zinnen). Zeg nooit dat je geen geluid of audio kunt horen.",
-            },
-          ],
-        };
-        sessionConversationHistory.push(userTurnEntry);
+            ],
+          });
+          userTranscription = sttRes.text?.trim() || "";
+        } catch (sttErr) {
+          console.warn("[SERVER] STT transcriptie fout:", sttErr);
+        }
 
-        // STT Transcriptie asynchroon in de achtergrond uitvoeren (GEEN VERTRAAGINGS-BLOCKER!)
-        (async () => {
-          const sttStart = Date.now();
-          try {
-            const sttRes = await aiClient.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: [
-                {
-                  role: "user",
-                  parts: [
-                    {
-                      inlineData: {
-                        mimeType: "audio/wav",
-                        data: wavBase64,
-                      },
-                    },
-                    {
-                      text: "Je bent een uiterst nauwkeurige Nederlandse spraakherkenner voor Hélène, een digitale gids op een scoutingkamp. Luister heel aandachtig naar de gesproken audio. Transcribeer de gesproken Nederlandse woorden exact letterlijk. Houd rekening met scoutingtermen (zoals Hélène, scouting, kamp, speurtocht, welpen, scouts, verkenners, tenten, kampvuur). Geef uitsluitend de letterlijke transcriptie terug, niks anders. Als er echt geen spraak te horen is of alleen stilte/ruis, antwoord dan met '[Geen verstaanbare spraak]'.",
-                    },
-                  ],
-                },
-              ],
-            });
-            const userTranscription = sttRes.text?.trim() || "";
-            if (userTranscription && userTranscription !== "[Geen verstaanbare spraak]" && !signal.aborted) {
-              // Vervang de zware audio in de geschiedenis door de lichte tekst,
-              // zodat volgende beurten niet steeds trager worden.
-              userTurnEntry.parts = [{ text: `De gebruiker zei zojuist: "${userTranscription}"` }];
-              console.log(`\n==================================================`);
-              console.log(`🎤 [VERSTAAN DOOR HÉLÈNE]: "${userTranscription}"`);
-              console.log(`==================================================\n`);
-              addLog("user", `🗣️ Gebruiker zei: "${userTranscription}"`, `Transcriptie in ${((Date.now() - sttStart) / 1000).toFixed(1)}s`);
-              if (clientWs.readyState === WebSocket.OPEN && !signal.aborted) {
-                clientWs.send(
-                  JSON.stringify({
-                    type: "user_transcription",
-                    text: userTranscription,
-                  })
-                );
-              }
-            }
-          } catch (sttErr) {
-            console.warn("[SERVER] Achtergrond STT transcriptie mislukt:", sttErr);
+        const isIntelligible = userTranscription && userTranscription !== "[Geen verstaanbare spraak]";
+
+        if (isIntelligible && !signal.aborted) {
+          console.log(`\n==================================================`);
+          console.log(`🎤 [VERSTAAN DOOR HÉLÈNE]: "${userTranscription}"`);
+          console.log(`==================================================\n`);
+          // GOUDEN REGEL: Altijd het VOLLEDIGE ingesproken en verstane bericht loggen zonder vertraging
+          addLog("user", `🗣️ Gebruiker zei: "${userTranscription}"`, `Verstaan op ${currentSession.isMaster ? "Hoofdscherm" : "Neven-scherm"} (${currentSession.ip}) in ${((Date.now() - sttStart) / 1000).toFixed(1)}s`);
+
+          if (clientWs.readyState === WebSocket.OPEN && !signal.aborted) {
+            clientWs.send(
+              JSON.stringify({
+                type: "user_transcription",
+                text: userTranscription,
+              })
+            );
           }
-        })();
+
+          // Voeg schone tekst toe aan de gespreksgeschiedenis voor 100% accurate antwoorden
+          sessionConversationHistory.push({
+            role: "user",
+            parts: [{ text: userTranscription }],
+          });
+        } else {
+          console.log("[SERVER] Geen verstaanbare spraak herkend in de audio.");
+          addLog("user", "🎤 [Geen verstaanbare spraak herkend]", `Geluid ontvangen (${(audioBase64.length / 32000).toFixed(1)}s)`);
+          sessionConversationHistory.push({
+            role: "user",
+            parts: [{ text: "Ik kon je bericht niet helemaal goed verstaan. Kun je het nog eens proberen?" }],
+          });
+        }
       } else {
-        console.log("[SERVER] Geen of te korte audio binnengekomen, standaard vriendelijke begroeting genereren.");
-        addLog("user", "🎤 Knop kort ingedrukt zonder gesproken tekst");
+        console.log("[SERVER] Knop kort ingedrukt (< 0.25s), vriendelijke begroeting genereren.");
+        addLog("user", "🎤 Knop kort ingedrukt (begroetingsknop)");
         sessionConversationHistory.push({
           role: "user",
           parts: [
             {
-              text: "Iemand heeft de knop ingedrukt om met je te praten. Geef een korte, enthousiaste begroeting in het Nederlands en vraag waarmee je ze kunt helpen.",
+              text: "Iemand heeft kort op de knop gedrukt. Geef een hele korte, enthousiaste begroeting in het Nederlands (maximaal 1 of 2 korte zinnen) en vraag waarmee je kunt helpen.",
             },
           ],
         });
       }
 
-      // Garantie tegen trage "verstaan"-tijden: verwijder audio uit alle eerdere
-      // beurten. Alleen de HUIDIGE beurt (de laatste in de lijst) stuurt audio mee;
-      // eerdere beurten reizen als lichte tekst, zodat de payload klein blijft.
-      for (let i = 0; i < sessionConversationHistory.length - 1; i++) {
+      // Opschonen van de gespreksgeschiedenis: zorg dat alle eerdere beurten alleen lichte tekst bevatten
+      for (let i = 0; i < sessionConversationHistory.length; i++) {
         const entry = sessionConversationHistory[i];
         if (entry.role === "user" && entry.parts.some((p: any) => p && p.inlineData)) {
           const textParts = entry.parts.filter((p: any) => p && p.text && !p.inlineData);
-          entry.parts = textParts.length > 0 ? textParts : [{ text: "(eerdere gesproken vraag van de gebruiker)" }];
+          entry.parts = textParts.length > 0 ? textParts : [{ text: "(eerdere vraag)" }];
         }
       }
 
-      // Bouw de volledige multimodale gespreksinhoud op inclusief geschiedenis
+      // Bouw de volledige gespreksinhoud op inclusief systeeminstructies & geschiedenis
       const contents = [
         { role: "user" as const, parts: [{ text: systemInstruction }] },
-        { role: "model" as const, parts: [{ text: "Begrepen! Ik ben Hélène, jouw digitale scouting gids. Ik onthoud onze vragen en antwoorden!" }] },
+        { role: "model" as const, parts: [{ text: "Begrepen! Ik ben Hélène, jouw digitale scouting gids. Ik beantwoord alle vragen enthousiast en exact!" }] },
         ...sessionConversationHistory,
       ];
 
@@ -1245,7 +1253,6 @@ wss.on("connection", (clientWs, request: any) => {
           console.log("[SERVER] Gemini streaming beurt geannuleerd via AbortController.");
           break;
         }
-        // Detecteer of Hélène live internet-zoeken heeft gebruikt
         const gm = (chunk as any)?.candidates?.[0]?.groundingMetadata;
         if (gm && (gm.webSearchQueries?.length || gm.groundingChunks?.length)) {
           usedSearch = true;
@@ -1253,7 +1260,6 @@ wss.on("connection", (clientWs, request: any) => {
         if (chunk.text && clientWs.readyState === WebSocket.OPEN && !signal.aborted) {
           if (!firstChunkAt) firstChunkAt = Date.now();
           fullHeleneText += chunk.text;
-          console.log(`[SERVER] Gemini tekst chunk: "${chunk.text}"`);
           clientWs.send(
             JSON.stringify({
               type: "transcript",
@@ -1277,7 +1283,6 @@ wss.on("connection", (clientWs, request: any) => {
         return;
       }
 
-      // ⏱️ Tijdmeting zodat je precies ziet waar de wachttijd zit
       const doneAt = Date.now();
       const toFirstWord = ((firstChunkAt || doneAt) - turnStart) / 1000;
       const total = (doneAt - turnStart) / 1000;
@@ -1291,16 +1296,15 @@ wss.on("connection", (clientWs, request: any) => {
         console.log(`\n==================================================`);
         console.log(`🤖 [ANTWOORD VAN HÉLÈNE]: "${fullHeleneText.trim()}"`);
         console.log(`==================================================\n`);
+        // GOUDEN REGEL: Altijd het VOLLEDIGE antwoord van Hélène loggen
         addLog("helene", `🎙️ Hélène: "${fullHeleneText.trim()}"`, `Model: ${activeModel}`);
 
-        // Voeg het antwoord van Hélène toe aan de gespreksgeschiedenis voor vervolgvragen
         sessionConversationHistory.push({
           role: "model",
           parts: [{ text: fullHeleneText.trim() }],
         });
       }
 
-      // Houd de geschiedenis begrensd tot maximaal 16 beurten (8 vragen + 8 antwoorden)
       if (sessionConversationHistory.length > 16) {
         sessionConversationHistory = sessionConversationHistory.slice(sessionConversationHistory.length - 16);
       }
@@ -1313,10 +1317,7 @@ wss.on("connection", (clientWs, request: any) => {
         clientWs.send(JSON.stringify({ type: "turn_complete" }));
       }
     } catch (err: any) {
-      if (signal.aborted) {
-        console.log("[SERVER] Abort signal opgevangen tijdens streaming turn execution.");
-        return;
-      }
+      if (signal.aborted) return;
       console.error("[SERVER] Fout bij handleStreamingTurn:", err);
       addLog("error", "Fout bij verwerken Gemini antwoord", err?.message || String(err));
       if (clientWs.readyState === WebSocket.OPEN) {

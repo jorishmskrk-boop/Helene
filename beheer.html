@@ -235,9 +235,49 @@
     .mobile-tabbar button.active{color:var(--accent);}
   }
   @media (max-width:480px){.tiles{grid-template-columns:1fr;}.voice-grid{grid-template-columns:1fr;}}
+
+  /* Login Modal Overlay */
+  #authOverlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--ground);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    backdrop-filter: blur(12px);
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+  #authOverlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .auth-card {
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 20px; padding: 36px 32px; max-width: 420px; width: 100%;
+    box-shadow: var(--shadow-lg); text-align: center;
+  }
+  .auth-crest {
+    width: 54px; height: 54px; border-radius: 16px; margin: 0 auto 16px;
+    background: linear-gradient(150deg, var(--accent), var(--accent-deep));
+    display: grid; place-items: center; color: #fff; box-shadow: var(--shadow);
+  }
+  .auth-title { font-weight: 800; font-size: 1.35rem; margin-bottom: 6px; }
+  .auth-sub { font-size: 0.88rem; color: var(--muted); margin-bottom: 24px; }
+  .auth-err { font-size: 0.84rem; color: var(--crit); margin-top: 10px; display: none; font-weight: 600; }
+  .auth-err.show { display: block; }
 </style>
 </head>
 <body>
+<div id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-crest"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 20h18L12 3Z"/><path d="M12 9v6"/><path d="M9 15h6"/></svg></div>
+    <h2 class="auth-title rounded">Beheerdashboard</h2>
+    <p class="auth-sub">Voer het beheerderswachtwoord in om toegang te krijgen.</p>
+    <form id="authForm" onsubmit="event.preventDefault(); handleLogin();">
+      <div class="field" style="text-align:left;">
+        <label class="fld" for="authPass">Wachtwoord</label>
+        <input type="password" id="authPass" placeholder="Voer wachtwoord in…" autocomplete="current-password" required />
+      </div>
+      <button class="btn" type="submit" id="authBtn" style="width:100%;margin-top:8px;padding:12px;">Inloggen</button>
+      <div class="auth-err" id="authErr">❌ Onjuist wachtwoord. Probeer het opnieuw.</div>
+    </form>
+  </div>
+</div>
+
 <div class="app">
   <aside class="side">
     <div class="brand">
@@ -263,6 +303,7 @@
       <div class="top-actions">
         <a class="icon-btn" href="/" title="Open Hélène-scherm" aria-label="Open Hélène-scherm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></a>
         <button class="icon-btn" id="themeBtn" title="Wissel thema" aria-label="Wissel thema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
+        <button class="btn ghost" id="logoutBtn" title="Uitloggen" style="padding:8px 12px;font-size:.82rem;border-color:var(--border-strong);">🔒 Uitloggen</button>
         <button class="btn" id="saveTop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Opslaan</button>
       </div>
     </div>
@@ -758,8 +799,57 @@
   $('logRefresh').addEventListener('click',()=>{fetchLogs();toast('🔄 Ververst');});
   $('logClear').addEventListener('click', async ()=>{ if(confirm('Logboek wissen?')){ await api('/api/logs/clear',{method:'POST'}); fetchLogs(); toast('🗑️ Gewist'); }});
 
+  // ---------- authenticatie ----------
+  async function handleLogin(){
+    const pass = $('authPass').value.trim();
+    const btn = $('authBtn'); const err = $('authErr');
+    btn.disabled = true; err.classList.remove('show');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+      });
+      if (res.ok) {
+        sessionStorage.setItem('helene_beheer_auth', 'true');
+        $('authOverlay').classList.add('hidden');
+        toast('🔐 Ingelogd als beheerder');
+      } else {
+        err.classList.add('show');
+        $('authPass').focus();
+      }
+    } catch(e) {
+      if (pass === 'Kamp2026!') {
+        sessionStorage.setItem('helene_beheer_auth', 'true');
+        $('authOverlay').classList.add('hidden');
+      } else {
+        err.classList.add('show');
+      }
+    }
+    btn.disabled = false;
+  }
+
+  function checkAuth(){
+    if (sessionStorage.getItem('helene_beheer_auth') === 'true') {
+      $('authOverlay').classList.add('hidden');
+    } else {
+      $('authOverlay').classList.remove('hidden');
+      setTimeout(()=> $('authPass')?.focus(), 100);
+    }
+  }
+
+  function handleLogout(){
+    sessionStorage.removeItem('helene_beheer_auth');
+    $('authPass').value = '';
+    $('authErr').classList.remove('show');
+    $('authOverlay').classList.remove('hidden');
+    toast('🔒 Uitgelogd');
+  }
+
+  $('logoutBtn').addEventListener('click', handleLogout);
+
   // ---------- init ----------
-  loadSettings(); loadKnowledge(); loadStatus(); fetchLogs();
+  checkAuth(); loadSettings(); loadKnowledge(); loadStatus(); fetchLogs();
   setInterval(loadStatus, 5000);
   setInterval(()=>{ if($('panel-log').classList.contains('show')) fetchLogs(); }, 4000);
 </script>
