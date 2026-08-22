@@ -440,6 +440,16 @@
           </div>
         </div>
 
+        <div class="card" style="border-color:var(--amber);background:color-mix(in srgb,var(--amber-tint) 25%,var(--surface));">
+          <div class="card-head"><h2><span class="badge-ico" style="background:var(--amber-tint);color:var(--amber);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Leiding modus (schunnig &amp; gevat)</h2></div>
+          <div class="field toggle-row"><label class="switch"><input type="checkbox" id="leidingMode"/><span class="slider"></span></label>
+            <div>
+              <div class="fld" style="margin:0;">Leiding modus inschakelen</div>
+              <div class="help" style="margin:2px 0 0;">Schakel in voor volwassen begeleiding en staf (18+). Hélène praat gevat, plagerig en met volwassen kamp-humor. Alle onderwerpen worden open besproken zonder kindercensuur.</div>
+            </div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-head"><h2><span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg></span>Persoonlijkheid &amp; model</h2></div>
           <div class="field"><label class="fld" for="sysInstr">Systeeminstructies</label>
@@ -674,6 +684,7 @@
     $('maxMin').value = Math.round((data.maxSessionDurationMs||300000)/60000);
     $('showSubs').checked = data.showSubtitles!==false;
     $('sleepMode').checked = data.sleepMode===true;
+    $('leidingMode').checked = data.leidingMode===true;
     const color = data.accentColor||'#38bdf8';
     document.querySelectorAll('#colorOpts .color-circle').forEach(c=>c.classList.toggle('sel', c.dataset.color===color));
     renderVoiceGrid(); updateEngineUI(); updateActiveVoice();
@@ -702,6 +713,7 @@
       maxSessionDurationMs: parseInt($('maxMin').value,10)*60000,
       showSubtitles: $('showSubs').checked,
       sleepMode: $('sleepMode').checked,
+      leidingMode: $('leidingMode').checked,
       accentColor: currentColor(),
     };
     $('saveTop').disabled=true;

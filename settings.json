@@ -7,6 +7,7 @@
   "showSubtitles": false,
   "accentColor": "#38bdf8",
   "sleepMode": false,
+  "leidingMode": false,
   "ttsEngine": "gemini",
   "elevenlabsApiKey": "",
   "elevenlabsVoiceId": "xC48XEWkfc3AvKqzOgCD",

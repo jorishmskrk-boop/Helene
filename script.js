@@ -23,6 +23,7 @@ let CONFIG = {
 let ws = null;
 let isSessionActive = false;
 let isRecording = false;
+let isThinking = false;
 let isHeleneSpeaking = false;
 let isConnecting = false;
 let isOffline = true; // Standaard starten we offline totdat WebSocket verbinding heeft
@@ -51,10 +52,11 @@ let currentAlpha = 0.5;
 let currentGlow = 6;
 let currentAmplitudeFactor = 0.5;
 
-// Target waarden voor lerp per staat (Rust, Luisteren, Spreken)
+// Target waarden voor lerp per staat (Rust, Luisteren, Nadenken, Spreken)
 const STATE_PARAMS = {
   IDLE: { lineWidth: 3, alpha: 0.5, glow: 6, ampFactor: 0.5 },
   LISTENING: { lineWidth: 4, alpha: 0.8, glow: 12, ampFactor: 0.6 },
+  THINKING: { lineWidth: 4, alpha: 0.7, glow: 12, ampFactor: 0.4 },
   SPEAKING: { lineWidth: 6, alpha: 1.0, glow: 24, ampFactor: 1.8 },
 };
 
@@ -213,6 +215,16 @@ function updateEyeState(state) {
 
 function setEyesState(state) {
   const container = document.getElementById("scoutEyesContainer");
+  const thinkingSpinner = document.getElementById("thinkingSpinner");
+
+  if (thinkingSpinner) {
+    if (state === "THINKING") {
+      thinkingSpinner.classList.add("active");
+    } else {
+      thinkingSpinner.classList.remove("active");
+    }
+  }
+
   if (!eyeWrappers || eyeWrappers.length === 0) return;
 
   container?.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "surprised", "sad", "curious");
@@ -382,6 +394,7 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         stopRecording();
         stopAudioPlayback();
         isHeleneSpeaking = false;
+        isThinking = false;
         setStatusText("Hoofdscherm heeft voorrang gekregen");
         if (subtitlesEl) {
           subtitlesEl.textContent = "⚡ Het Hoofdscherm heeft voorrang gekregen.";
@@ -391,6 +404,7 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         log(`⚠️ Server is bezet: ${msg.message}`);
         stopRecording();
         stopAudioPlayback();
+        isThinking = false;
         setStatusText(msg.message || "Hélène is momenteel in gesprek...");
         if (subtitlesEl) {
           subtitlesEl.textContent = msg.message || "Hélène is momenteel in gesprek...";
@@ -400,6 +414,7 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         log("✂️ Verbreekt door beheerder.");
         stopRecording();
         stopAudioPlayback();
+        isThinking = false;
         if (ws) { try { ws.close(); } catch (e) {} ws = null; }
         setConnectionState("offline", "Losgekoppeld door beheer");
         if (subtitlesEl) {
@@ -412,6 +427,7 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
           log("Inkomende audio genegeerd omdat de gebruiker aan het opnemen is.");
           return;
         }
+        isThinking = false;
         isHeleneSpeaking = true;
         audioBytesReceivedTotal += Math.round((msg.data.length * 3) / 4);
         playAudioChunk(msg.data);
@@ -424,6 +440,7 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
           subtitlesEl.style.display = CONFIG.SHOW_SUBTITLES ? "block" : "none";
         }
       } else if (msg.type === "subtitle") {
+        isThinking = false;
         if (subtitlesEl) {
           subtitlesEl.textContent = `Hélène: "${msg.text}"`;
           subtitlesEl.style.display = CONFIG.SHOW_SUBTITLES ? "block" : "none";
@@ -435,18 +452,21 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         log("Hélène onderbroken door gebruiker.");
         stopAudioPlayback();
         isHeleneSpeaking = false;
+        isThinking = false;
         // Verse start voor de volgende uiting (o.a. mededelingen vanuit beheer)
         resetTurnExpression();
       } else if (msg.type === "turn_complete") {
         log("Hélène klaar met spreken.");
         isHeleneSpeaking = false;
+        isThinking = false;
         setTimeout(() => {
-          if (!isHeleneSpeaking && !isRecording) {
+          if (!isHeleneSpeaking && !isRecording && !isThinking) {
             setEyesState("NEUTRAL");
           }
         }, 1200);
       } else if (msg.type === "error") {
         log(`FOUT van Gemini Live API: ${msg.message}`);
+        isThinking = false;
         showError(msg.message);
       }
     } catch (err) {
@@ -711,6 +731,7 @@ function stopRecording() {
   userWantsRecording = false;
   if (!isRecording) return;
   isRecording = false;
+  isThinking = true;
 
   if (talkArea) talkArea.classList.remove("active");
 
@@ -738,6 +759,7 @@ async function playAudioChunk(base64Data) {
   if (isRecording || userWantsRecording) {
     return;
   }
+  isThinking = false;
   ensureAudioUnlocked();
 
   if (!outputAnalyser) {
@@ -795,7 +817,7 @@ async function playAudioChunk(base64Data) {
       if (idx > -1) activeSources.splice(idx, 1);
       if (activeSources.length === 0) {
         isHeleneSpeaking = false;
-        if (!isRecording) {
+        if (!isRecording && !isThinking) {
           setStatusText("Luister naar Hélène...");
         }
       }
@@ -847,6 +869,8 @@ function initWaveformVisualizer() {
     let targetStateKey = "IDLE";
     if (isRecording) {
       targetStateKey = "LISTENING";
+    } else if (isThinking) {
+      targetStateKey = "THINKING";
     } else if (isHeleneSpeaking || activeSources.length > 0) {
       targetStateKey = "SPEAKING";
     }
