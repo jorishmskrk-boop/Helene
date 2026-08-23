@@ -13,7 +13,7 @@
   "spookyVoicePercentage": 25,
   "spookyVoiceName": "zojvBHbqOyCw0VFcoJyJ",
   "openrouterApiKey": "",
-  "openrouterModel": "meta-llama/llama-3.3-70b-instruct:free",
+  "openrouterModel": "openrouter/free",
   "ttsEngine": "gemini",
   "elevenlabsApiKey": "",
   "elevenlabsVoiceId": "xC48XEWkfc3AvKqzOgCD",

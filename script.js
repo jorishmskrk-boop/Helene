@@ -828,36 +828,20 @@ async function playAudioChunk(base64Data) {
     let subSource = null;
 
     if (isCurrentTurnSpooky) {
-      // Hoofdstem erg traag en extreem laag gestemd (boos/duister)
-      source.playbackRate.value = 0.62;
+      // Hoofdstem licht vertraagd voor dreiging, maar 100% haarscherp verstaanbaar
+      source.playbackRate.value = 0.92;
 
-      // 1. Eerste demonische sub-basstem (1 octaaf lager)
+      // Subtiele schaduwstem op de achtergrond voor griezeleffect zonder gemompel
       subSource = outputAudioCtx.createBufferSource();
       subSource.buffer = buffer;
-      subSource.playbackRate.value = 0.42;
+      subSource.playbackRate.value = 0.75;
 
       const subGain = outputAudioCtx.createGain();
-      subGain.gain.value = 0.70;
+      subGain.gain.value = 0.18; // Zeer subtiel volume zodat de hoofdstem 100% helder blijft
 
-      // 2. Tweede extreem diepe brom-stem (diepe hellebas)
-      const subSource2 = outputAudioCtx.createBufferSource();
-      subSource2.buffer = buffer;
-      subSource2.playbackRate.value = 0.31;
-
-      const subGain2 = outputAudioCtx.createGain();
-      subGain2.gain.value = 0.50;
-
-      // Sub-bronnen door de analyser sturen
       subSource.connect(subGain);
       subGain.connect(outputAnalyser);
-
-      subSource2.connect(subGain2);
-      subGain2.connect(outputAnalyser);
-
       source.connect(outputAnalyser);
-
-      subSource2.start(nextStartTime);
-      activeSources.push(subSource2);
 
       const eyeContainer = document.getElementById("scoutEyesContainer");
       if (eyeContainer) eyeContainer.classList.add("spooky");
@@ -875,7 +859,7 @@ async function playAudioChunk(base64Data) {
     source.start(nextStartTime);
     if (subSource) subSource.start(nextStartTime);
 
-    const chunkDuration = isCurrentTurnSpooky ? buffer.duration / 0.62 : buffer.duration;
+    const chunkDuration = isCurrentTurnSpooky ? buffer.duration / 0.92 : buffer.duration;
     nextStartTime += chunkDuration;
 
     activeSources.push(source);
