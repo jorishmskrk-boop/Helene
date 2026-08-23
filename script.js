@@ -13,6 +13,8 @@ let CONFIG = {
   SHOW_SUBTITLES: true,
   ACCENT_COLOR: "#38bdf8",
   SLEEP_MODE: false,
+  SPOOKY_VOICE_MODE: false,
+  SPOOKY_VOICE_PERCENTAGE: 25,
   RECONNECT_BASE_DELAY_MS: 1000,
   RECONNECT_MAX_DELAY_MS: 16000,
 };
@@ -111,6 +113,8 @@ async function fetchDynamicSettings() {
       CONFIG.SHOW_SUBTITLES = settings.showSubtitles !== false;
       CONFIG.ACCENT_COLOR = settings.accentColor || "#38bdf8";
       CONFIG.SLEEP_MODE = settings.sleepMode === true;
+      CONFIG.SPOOKY_VOICE_MODE = settings.spookyVoiceMode === true;
+      CONFIG.SPOOKY_VOICE_PERCENTAGE = typeof settings.spookyVoicePercentage === "number" ? settings.spookyVoicePercentage : 25;
 
       // CSS Variabele bijwerken voor de Franse Lelies ogen & accentkleur
       document.documentElement.style.setProperty("--accent-color", CONFIG.ACCENT_COLOR);
@@ -264,11 +268,19 @@ function setEyesState(state) {
 let heleneTurnText = "";
 let turnExpression = "HAPPY";
 let gestureFiredThisTurn = false;
+let isCurrentTurnSpooky = false;
 
 function resetTurnExpression() {
   heleneTurnText = "";
   turnExpression = "HAPPY";
   gestureFiredThisTurn = false;
+
+  if (CONFIG.SPOOKY_VOICE_MODE === true) {
+    const pct = typeof CONFIG.SPOOKY_VOICE_PERCENTAGE === "number" ? CONFIG.SPOOKY_VOICE_PERCENTAGE : 25;
+    isCurrentTurnSpooky = Math.random() * 100 < pct;
+  } else {
+    isCurrentTurnSpooky = false;
+  }
 }
 
 // Bepaal een blijvende uitdrukking + eventueel een kort gebaar uit de tekst
@@ -464,6 +476,19 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
             setEyesState("NEUTRAL");
           }
         }, 1200);
+      } else if (msg.type === "play_hacker_video") {
+        const vid = document.getElementById("hackerVideoOverlay");
+        if (vid) {
+          vid.style.display = "block";
+          vid.currentTime = 0;
+          vid.play().catch((e) => console.error("Fout bij afspelen hacker video:", e));
+        }
+      } else if (msg.type === "stop_hacker_video") {
+        const vid = document.getElementById("hackerVideoOverlay");
+        if (vid) {
+          vid.pause();
+          vid.style.display = "none";
+        }
       } else if (msg.type === "error") {
         log(`FOUT van Gemini Live API: ${msg.message}`);
         isThinking = false;
@@ -799,7 +824,30 @@ async function playAudioChunk(base64Data) {
 
     const source = outputAudioCtx.createBufferSource();
     source.buffer = buffer;
-    source.connect(outputAnalyser);
+
+    let subSource = null;
+
+    if (isCurrentTurnSpooky) {
+      source.playbackRate.value = 0.74;
+
+      subSource = outputAudioCtx.createBufferSource();
+      subSource.buffer = buffer;
+      subSource.playbackRate.value = 0.50;
+
+      const subGain = outputAudioCtx.createGain();
+      subGain.gain.value = 0.45;
+
+      subSource.connect(subGain);
+      subGain.connect(outputAnalyser);
+      source.connect(outputAnalyser);
+
+      const eyeContainer = document.getElementById("scoutEyesContainer");
+      if (eyeContainer) eyeContainer.classList.add("spooky");
+    } else {
+      source.connect(outputAnalyser);
+      const eyeContainer = document.getElementById("scoutEyesContainer");
+      if (eyeContainer) eyeContainer.classList.remove("spooky");
+    }
 
     const currentTime = outputAudioCtx.currentTime;
     if (nextStartTime < currentTime) {
@@ -807,23 +855,35 @@ async function playAudioChunk(base64Data) {
     }
 
     source.start(nextStartTime);
-    nextStartTime += buffer.duration;
+    if (subSource) subSource.start(nextStartTime);
+
+    const chunkDuration = isCurrentTurnSpooky ? buffer.duration / 0.74 : buffer.duration;
+    nextStartTime += chunkDuration;
+
     activeSources.push(source);
+    if (subSource) activeSources.push(subSource);
+
     isHeleneSpeaking = true;
-    setEyesState(turnExpression || "HAPPY");
+    setEyesState(isCurrentTurnSpooky ? "SPOOKY" : (turnExpression || "HAPPY"));
 
     source.onended = () => {
       const idx = activeSources.indexOf(source);
       if (idx > -1) activeSources.splice(idx, 1);
+      if (subSource) {
+        const subIdx = activeSources.indexOf(subSource);
+        if (subIdx > -1) activeSources.splice(subIdx, 1);
+      }
       if (activeSources.length === 0) {
         isHeleneSpeaking = false;
+        const eyeContainer = document.getElementById("scoutEyesContainer");
+        if (eyeContainer) eyeContainer.classList.remove("spooky");
         if (!isRecording && !isThinking) {
           setStatusText("Luister naar Hélène...");
         }
       }
     };
 
-    setStatusText("Hélène spreekt...");
+    setStatusText(isCurrentTurnSpooky ? "Hélène spreekt (griezelig)..." : "Hélène spreekt...");
   } catch (err) {
     console.error("Fout bij afspelen audio chunk:", err);
   }
@@ -996,6 +1056,15 @@ function initWaveformVisualizer() {
 // EVENT LISTENERS & SPRAAK GEBRUIK
 // ============================================================================
 function setupEventListeners() {
+  const vidOverlay = document.getElementById("hackerVideoOverlay");
+  if (vidOverlay) {
+    // Automatisch verbergen wanneer de video helemaal afgespeeld is
+    vidOverlay.addEventListener("ended", () => {
+      vidOverlay.pause();
+      vidOverlay.style.display = "none";
+    });
+  }
+
   // Muis & Touch over het gehele scherm
   window.addEventListener("mousedown", (e) => {
     const target = e.target;

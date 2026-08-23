@@ -530,6 +530,25 @@
         filter: drop-shadow(0 0 12px var(--accent-color, #38bdf8)) opacity(0.85);
       }
 
+      /* EMOTIESTAND: Spooky / Satanisch — bloedrode ooggloed, gehoekte wenkbrauwen */
+      #scoutEyesContainer.spooky {
+        transform: translateX(-50%) rotate(-4deg);
+      }
+      .eye-wrapper.spooky .scout-eye-svg {
+        filter: drop-shadow(0 0 38px #dc2626) drop-shadow(0 0 20px #7f1d1d) !important;
+        transform: scale(1.15);
+      }
+      .eye-wrapper.spooky .left-eyebrow {
+        transform: translateY(-24px) rotate(-26deg) scale(1.25);
+        filter: drop-shadow(0 0 25px #ef4444) !important;
+        fill: #ef4444 !important;
+      }
+      .eye-wrapper.spooky .right-eyebrow {
+        transform: translateY(-16px) rotate(22deg) scale(1.25);
+        filter: drop-shadow(0 0 25px #ef4444) !important;
+        fill: #ef4444 !important;
+      }
+
       /* EMOTIESTAND: Nieuwsgierig — asymmetrische wenkbrauwen + hoofd kantelt */
       .eye-wrapper.curious .left-eyebrow {
         transform: translateY(-20px) rotate(-8deg) scale(1.12);
@@ -657,7 +676,9 @@
     </style>
   </head>
   <body>
-    <div id="mainAppContainer">
+    <div id="mainContainer">
+      <!-- Fullscreen Hackerscherm Video Overlay (alleen te stoppen vanuit beheer of na afspelen) -->
+      <video id="hackerVideoOverlay" src="/Hackerscreen.mp4" playsinline style="display:none; position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; z-index:9999; background:#000; pointer-events:none;"></video>
       <!-- Verbindingsindicator rechtsboven op de TV -->
       <div id="connectionIndicator">
         <div id="statusDot"></div>

@@ -357,6 +357,28 @@
             <button class="btn" id="sayBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 14-7v16L3 13v-2Z"/><path d="M17 8a3 3 0 0 1 0 8"/></svg>Laat uitspreken</button></div>
           <div class="status-msg" id="sayStatus" style="margin-top:10px;"></div>
         </div>
+
+        <!-- Hackerscherm Video Control Card -->
+        <div class="card" style="border-color:var(--accent);background:color-mix(in srgb,var(--accent-tint) 35%,var(--surface));">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico" style="background:var(--accent-tint);color:var(--accent-deep);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+              </span>
+              💻 Hackerscherm Video
+            </h2>
+          </div>
+          <p class="help">Speel de video <code>Hackerscreen.mp4</code> direct fullscreen af op het TV-scherm voor een spannend scènereffect.</p>
+          <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+            <button type="button" id="btnStartHacker" class="btn" style="flex:1;min-height:48px;background:var(--crit);color:#fff;border:none;font-weight:700;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:8px;">
+              💻 Start Hackerscherm Video
+            </button>
+            <button type="button" id="btnStopHacker" class="btn" style="flex:1;min-height:48px;background:var(--surface-2);color:var(--ink);border:1px solid var(--border-strong);font-weight:700;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:8px;">
+              ⏹️ Stop Video
+            </button>
+          </div>
+          <div id="hackerStatusMsg" class="status-msg" style="margin-top:10px;"></div>
+        </div>
       </section>
 
       <!-- ===== KENNISBANK ===== -->
@@ -446,6 +468,58 @@
             <div>
               <div class="fld" style="margin:0;">Leiding modus inschakelen</div>
               <div class="help" style="margin:2px 0 0;">Schakel in voor volwassen begeleiding en staf (18+). Hélène praat gevat, plagerig en met volwassen kamp-humor. Alle onderwerpen worden open besproken zonder kindercensuur.</div>
+            </div>
+          </div>
+          <div class="field toggle-row" style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border-strong);"><label class="switch"><input type="checkbox" id="autoResetLeidingMode"/><span class="slider"></span></label>
+            <div>
+              <div class="fld" style="margin:0;">🌅 Automatisch uitschakelen om 06:00 uur 's ochtends</div>
+              <div class="help" style="margin:2px 0 0;">Schakelt Hélène om 06:00 uur automatisch terug naar de normale kindvriendelijke stand, voordat de kinderen wakker worden.</div>
+            </div>
+          </div>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-strong);">
+            <div class="field">
+              <label class="fld" for="orKey">OpenRouter API Key (voor ongecensureerde modellen)</label>
+              <input type="password" id="orKey" placeholder="sk-or-v1-… (of via OPENROUTER_API_KEY in .env)" autocomplete="off" />
+              <div class="help" style="margin-top:4px;">Gratis te maken via <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent);text-decoration:underline;">openrouter.ai/keys</a> of in te stellen via <code>OPENROUTER_API_KEY</code> in je <code>.env</code> bestand.</div>
+            </div>
+            <div class="field">
+              <label class="fld" for="orModel">OpenRouter Model (gekozen AI)</label>
+              <select id="orModel">
+                <option value="meta-llama/llama-3.3-70b-instruct:free">meta-llama/llama-3.3-70b-instruct:free (Aanbevolen, gratis)</option>
+                <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free (Gratis)</option>
+                <option value="mistralai/mistral-7b-instruct:free">mistralai/mistral-7b-instruct:free (Gratis)</option>
+                <option value="qwen/qwen-2.5-72b-instruct:free">qwen/qwen-2.5-72b-instruct:free (Gratis)</option>
+                <option value="gryphe/mythomax-l2-13b">gryphe/mythomax-l2-13b (Ongecensureerd erotiek/rollenspel)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Griezel / Satanische Stem -->
+        <div class="card" style="border-color:var(--crit);background:color-mix(in srgb,var(--crit) 8%,var(--surface));">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico" style="background:rgba(220,38,38,0.15);color:var(--crit);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 0 0-9 9c0 4.97 4.03 9 9 9s9-4.03 9-9a9 9 0 0 0-9-9Z"/><path d="M9 10h.01M15 10h.01"/><path d="M9 15c1.5 1.5 4.5 1.5 6 0"/></svg>
+              </span>
+              👻 Griezel/Satanische stem-effect
+            </h2>
+          </div>
+          <div class="field toggle-row">
+            <label class="switch"><input type="checkbox" id="spookyVoiceMode"/><span class="slider"></span></label>
+            <div>
+              <div class="fld" style="margin:0;">Griezelstem effect inschakelen</div>
+              <div class="help" style="margin:2px 0 0;">Vervormt Hélène's stem in real-time naar een diepe, enge toon met een demonische sub-basstem en bloedrode ooggloed.</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border-strong);">
+            <div class="field">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <label class="fld" for="spookyVoicePct" style="margin:0;">Kans per beurt (0% tot 100%)</label>
+                <span id="spookyVoicePctVal" class="mono" style="background:var(--crit);color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:0.85rem;">25%</span>
+              </div>
+              <input type="range" id="spookyVoicePct" min="0" max="100" step="1" value="25" style="width:100%;height:32px;cursor:pointer;" />
+              <div class="help" style="margin-top:6px;">Stel per procent in hoe vaak Hélène griezelig klinkt. Bij 100% klinkt elk antwoord demonisch!</div>
             </div>
           </div>
         </div>
@@ -680,15 +754,26 @@
     $('freeVoiceName').value = data.voiceName||'';
     $('elKey').value = data.elevenlabsApiKey||''; $('elVoice').value=data.elevenlabsVoiceId||'';
     if(data.elevenlabsModelId) $('elModel').value=data.elevenlabsModelId;
+    $('orKey').value = data.openrouterApiKey||'';
+    if(data.openrouterModel) $('orModel').value = data.openrouterModel;
     $('idleSec').value = Math.round((data.idleTimeoutMs||45000)/1000);
     $('maxMin').value = Math.round((data.maxSessionDurationMs||300000)/60000);
     $('showSubs').checked = data.showSubtitles!==false;
     $('sleepMode').checked = data.sleepMode===true;
     $('leidingMode').checked = data.leidingMode===true;
+    $('autoResetLeidingMode').checked = data.autoResetLeidingMode!==false;
+    $('spookyVoiceMode').checked = data.spookyVoiceMode===true;
+    const spookyPct = typeof data.spookyVoicePercentage==='number' ? data.spookyVoicePercentage : 25;
+    $('spookyVoicePct').value = spookyPct;
+    $('spookyVoicePctVal').textContent = spookyPct + '%';
     const color = data.accentColor||'#38bdf8';
     document.querySelectorAll('#colorOpts .color-circle').forEach(c=>c.classList.toggle('sel', c.dataset.color===color));
     renderVoiceGrid(); updateEngineUI(); updateActiveVoice();
   }
+
+  $('spookyVoicePct').addEventListener('input', () => {
+    $('spookyVoicePctVal').textContent = $('spookyVoicePct').value + '%';
+  });
 
   // freeVoiceName tikt door naar state
   $('freeVoiceName').addEventListener('input',()=>{ if(state.ttsEngine==='free'){ state.voiceName=$('freeVoiceName').value.trim()||'Kore'; updateActiveVoice(); }});
@@ -707,6 +792,8 @@
       elevenlabsApiKey: $('elKey').value.trim(),
       elevenlabsVoiceId: $('elVoice').value.trim(),
       elevenlabsModelId: $('elModel').value,
+      openrouterApiKey: $('orKey').value.trim(),
+      openrouterModel: $('orModel').value,
       modelName: $('modelName').value,
       liveModel: $('liveModel').value,
       idleTimeoutMs: parseInt($('idleSec').value,10)*1000,
@@ -714,6 +801,9 @@
       showSubtitles: $('showSubs').checked,
       sleepMode: $('sleepMode').checked,
       leidingMode: $('leidingMode').checked,
+      autoResetLeidingMode: $('autoResetLeidingMode').checked,
+      spookyVoiceMode: $('spookyVoiceMode').checked,
+      spookyVoicePercentage: parseInt($('spookyVoicePct').value, 10) || 25,
       accentColor: currentColor(),
     };
     $('saveTop').disabled=true;
@@ -723,6 +813,29 @@
     else toast('❌ Opslaan mislukt');
   }
   $('saveTop').addEventListener('click',saveSettings);
+
+  // ---------- hackerscherm knoppen ----------
+  const btnStartHacker = $('btnStartHacker');
+  if (btnStartHacker) {
+    btnStartHacker.addEventListener('click', async () => {
+      btnStartHacker.disabled = true;
+      const { ok } = await api('/api/hacker-screen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start' }) });
+      btnStartHacker.disabled = false;
+      if (ok) toast('💻 Hackerscherm video gestart op schermen');
+      else toast('❌ Kon video niet starten');
+    });
+  }
+
+  const btnStopHacker = $('btnStopHacker');
+  if (btnStopHacker) {
+    btnStopHacker.addEventListener('click', async () => {
+      btnStopHacker.disabled = true;
+      const { ok } = await api('/api/hacker-screen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'stop' }) });
+      btnStopHacker.disabled = false;
+      if (ok) toast('⏹️ Hackerscherm gestopt');
+      else toast('❌ Kon video niet stoppen');
+    });
+  }
 
   // ---------- stem beluisteren ----------
   let testCtx=null;
