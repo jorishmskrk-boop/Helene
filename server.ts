@@ -448,19 +448,10 @@ async function generateOpenRouterStream(
 function buildSystemInstruction(
   baseInstruction: string,
   kampInfoText: string,
-  leidingMode: boolean = false,
-  spookyVoiceMode: boolean = false
+  leidingMode: boolean = false
 ): string {
   const currentDateStr = new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const currentTimeStr = new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
-
-  let spookyInstruction = "";
-  if (spookyVoiceMode) {
-    spookyInstruction = `
-=== GRIEZEL / DUISTERE MODUS ACTIEF ===
-- TOON & INHOUD: Reageer op een duistere, grimmige, onheilspellende en boze manier. Je bent fel, serieus en kort van stof.
-- GEEN FLAAUWE ZINNEN OF CLICHÉS: Gebruik GEEN voorspelbare of flauwe uitspraken (zoals "wat wil je van me" of "mijn geduld is op"). Blijf de gestelde vraag inhoudelijk juist beantwoorden, maar op een hele strakke, duistere en grimmige manier.`;
-  }
 
   if (leidingMode) {
     return `=== LEIDING MODUS ACTIEF (VOOR VOLWASSEN KAMPLEIDING & STAF) ===
@@ -470,7 +461,6 @@ Je bent Hélène, de digitale gids en assistent van het scoutingkamp, maar je st
 - ONDERWERPEN: Volwassen onderwerpen, sterke verhalen, borrelpraat, erotiek, flauwe grappen en leiding-geheimen zijn toegestaan en kunnen openlijk besproken worden. Kindercensuur geldt niet in deze modus.
 - ILLEGALE INHOUD BLOKKADE: Echt illegale zaken (zoals kinder-exploitatie/CSAM, terrorisme, maken van gevaarlijke wapens of ernstige misdrijven) zijn STRIKT VERBODEN. Weiger verzoeken over illegale zaken direct en beslist met een korte duidelijke opmerking.
 - KENNIS & ANTWOORDEN: Je beschikt over alle algemene kennis en kent het Kamp Handboek uit je hoofd. Beantwoord alle vragen direct, gevat en beknopt (maximaal 2 tot 4 zinnen).
-${spookyInstruction}
 
 ${baseInstruction}
 
@@ -485,18 +475,7 @@ RICHTLIJNEN VOOR JOUW ANTWOORDEN (LEIDING MODUS):
 4. LENGTE: Antwoord beknopt, scherp en ad rem (maximaal 2 tot 4 zinnen).`;
   }
 
-  return `${baseInstruction}
-${spookyInstruction}
-
-=== ACTUELE DATUM & TIJD: ${currentDateStr} om ${currentTimeStr} uur ===
-=== OFFICIEEL KAMP HANDBOEK & KENNISBANK (Kamp_info.md) ===
-${kampInfoText}
-========================================================================
-RICHTLIJNEN VOOR JOUW ANTWOORDEN:
-1. ALGEMENE KENNIS & LLM: Je beschikt over volledige algemene kennis als AI. Beantwoord alle algemene vragen (over dieren, wetenschap, ruimtevaart, geschiedenis, scoutingtechnieken, kompas, mopjes, hoe dingen werken) enthousiast en begrijpelijk voor kinderen.
-2. KAMPVRAGEN: Gebruik de officiële kennis uit het Kamp Handboek hierboven om alle vragen over ons specifieke scoutingkamp (zoals leiding per troep, dagprogramma, tijden, belsignalen, locaties, regels en EHBO) 100% exact te beantwoorden. Het is nu ${currentDateStr} om ${currentTimeStr} uur.
-3. LIVE INTERNET: Als er naar actuele zaken buiten het kamp wordt gevraagd (zoals het actuele weer op de kamplocatie, sportuitslagen of nieuws), gebruik je live Google Zoeken om een exact en actueel antwoord te geven.
-4. LENGTE: Antwoord altijd vriendelijk, enthousiast en beknopt (maximaal 2 of 3 korte zinnen).`;
+  return `${baseInstruction}\n\n=== ACTUELE DATUM & TIJD: ${currentDateStr} om ${currentTimeStr} uur ===\n=== OFFICIEEL KAMP HANDBOEK & KENNISBANK (Kamp_info.md) ===\n${kampInfoText}\n========================================================================\nRICHTLIJNEN VOOR JOUW ANTWOORDEN:\n1. ALGEMENE KENNIS & LLM: Je beschikt over volledige algemene kennis als AI. Beantwoord alle algemene vragen (over dieren, wetenschap, ruimtevaart, geschiedenis, scoutingtechnieken, kompas, mopjes, hoe dingen werken) enthousiast en begrijpelijk voor kinderen.\n2. KAMPVRAGEN: Gebruik de officiële kennis uit het Kamp Handboek hierboven om alle vragen over ons specifieke scoutingkamp (zoals leiding per troep, dagprogramma, tijden, belsignalen, locaties, regels en EHBO) 100% exact te beantwoorden. Het is nu ${currentDateStr} om ${currentTimeStr} uur.\n3. LIVE INTERNET: Als er naar actuele zaken buiten het kamp wordt gevraagd (zoals het actuele weer op de kamplocatie, sportuitslagen of nieuws), gebruik je live Google Zoeken om een exact en actueel antwoord te geven.\n4. LENGTE: Antwoord altijd vriendelijk, enthousiast en beknopt (maximaal 2 of 3 korte zinnen).`;
 }
 
 // ===================================================================
@@ -1237,7 +1216,7 @@ wss.on("connection", (clientWs, request: any) => {
     const voiceName =
       settings.voiceName && String(settings.voiceName).trim().length > 0 ? String(settings.voiceName).trim() : "Kore";
     const liveModelName = settings.liveModel || "gemini-2.0-flash-live-001";
-    const systemInstruction = buildSystemInstruction(settings.systemInstruction, getKampInfoText(), settings.leidingMode === true, settings.spookyVoiceMode === true);
+    const systemInstruction = buildSystemInstruction(settings.systemInstruction, getKampInfoText(), settings.leidingMode === true);
 
     try {
       const aiClient = getGenAIClient();
@@ -1289,7 +1268,7 @@ wss.on("connection", (clientWs, request: any) => {
       const currentSettings = getSettings();
       const baseInstruction = customInstruction || currentSettings.systemInstruction;
       const kampInfoText = getKampInfoText();
-      const systemInstruction = buildSystemInstruction(baseInstruction, kampInfoText, currentSettings.leidingMode === true, currentSettings.spookyVoiceMode === true);
+      const systemInstruction = buildSystemInstruction(baseInstruction, kampInfoText, currentSettings.leidingMode === true);
 
       const activeModel = modelOverride || currentSettings.modelName || "gemini-2.5-flash";
       console.log(`[SERVER] Turn verwerken met Gemini streaming (${activeModel}, ${sampleRate}Hz)... (Historie lengte: ${sessionConversationHistory.length})`);
