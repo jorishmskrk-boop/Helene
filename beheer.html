@@ -485,9 +485,9 @@
             <div class="field">
               <label class="fld" for="orModel">OpenRouter Model (gekozen AI)</label>
               <select id="orModel">
-                <option value="meta-llama/llama-3.3-70b-instruct:free">meta-llama/llama-3.3-70b-instruct:free (Aanbevolen, gratis)</option>
-                <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free (Gratis)</option>
-                <option value="mistralai/mistral-7b-instruct:free">mistralai/mistral-7b-instruct:free (Gratis)</option>
+                <option value="mistralai/mistral-7b-instruct:free">mistralai/mistral-7b-instruct:free (Aanbevolen, snel &amp; gratis)</option>
+                <option value="meta-llama/llama-3.1-8b-instruct:free">meta-llama/llama-3.1-8b-instruct:free (Gratis)</option>
+                <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free (Gratis redeneermodel)</option>
                 <option value="qwen/qwen-2.5-72b-instruct:free">qwen/qwen-2.5-72b-instruct:free (Gratis)</option>
                 <option value="gryphe/mythomax-l2-13b">gryphe/mythomax-l2-13b (Ongecensureerd erotiek/rollenspel)</option>
               </select>
@@ -520,6 +520,11 @@
               </div>
               <input type="range" id="spookyVoicePct" min="0" max="100" step="1" value="25" style="width:100%;height:32px;cursor:pointer;" />
               <div class="help" style="margin-top:6px;">Stel per procent in hoe vaak Hélène griezelig klinkt. Bij 100% klinkt elk antwoord demonisch!</div>
+            </div>
+            <div class="field" style="margin-top:12px;">
+              <label class="fld" for="spookyVoiceName">Stem / ElevenLabs Voice ID voor griezelmodus</label>
+              <input type="text" id="spookyVoiceName" placeholder="Bijv. zojvBHbqOyCw0VFcoJyJ of Fenrir" />
+              <div class="help" style="margin-top:4px;">Gekoppeld aan je eigen ElevenLabs griezelstem (<code>zojvBHbqOyCw0VFcoJyJ</code>) of een Gemini stem (Fenrir / Charon).</div>
             </div>
           </div>
         </div>
@@ -766,6 +771,7 @@
     const spookyPct = typeof data.spookyVoicePercentage==='number' ? data.spookyVoicePercentage : 25;
     $('spookyVoicePct').value = spookyPct;
     $('spookyVoicePctVal').textContent = spookyPct + '%';
+    if(data.spookyVoiceName) $('spookyVoiceName').value = data.spookyVoiceName;
     const color = data.accentColor||'#38bdf8';
     document.querySelectorAll('#colorOpts .color-circle').forEach(c=>c.classList.toggle('sel', c.dataset.color===color));
     renderVoiceGrid(); updateEngineUI(); updateActiveVoice();
@@ -804,6 +810,7 @@
       autoResetLeidingMode: $('autoResetLeidingMode').checked,
       spookyVoiceMode: $('spookyVoiceMode').checked,
       spookyVoicePercentage: parseInt($('spookyVoicePct').value, 10) || 25,
+      spookyVoiceName: $('spookyVoiceName').value,
       accentColor: currentColor(),
     };
     $('saveTop').disabled=true;

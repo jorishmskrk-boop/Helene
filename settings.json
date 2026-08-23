@@ -11,6 +11,7 @@
   "autoResetLeidingMode": true,
   "spookyVoiceMode": false,
   "spookyVoicePercentage": 25,
+  "spookyVoiceName": "zojvBHbqOyCw0VFcoJyJ",
   "openrouterApiKey": "",
   "openrouterModel": "meta-llama/llama-3.3-70b-instruct:free",
   "ttsEngine": "gemini",
