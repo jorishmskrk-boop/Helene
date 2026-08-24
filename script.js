@@ -846,35 +846,34 @@ async function playAudioChunk(base64Data) {
     let subSource = null;
 
     if (isCurrentTurnSpooky) {
-      // 1. Donkere, boze hoofdstem
-      source.playbackRate.value = 0.88;
+      // 1. Haarscherpe, helder verstaanbare hoofdstem
+      source.playbackRate.value = 0.94;
 
-      // 2. Diepe dreigende schaduwstem op de achtergrond
+      // 2. Subtiele achtergrond schaduwstem (niet overheersend)
       subSource = outputAudioCtx.createBufferSource();
       subSource.buffer = buffer;
-      subSource.playbackRate.value = 0.68;
+      subSource.playbackRate.value = 0.78;
 
       const subGain = outputAudioCtx.createGain();
-      subGain.gain.value = 0.35;
+      subGain.gain.value = 0.12; // Zeer licht volume zodat de stem 100% helder blijft
 
-      // Lowshelf filter voor een zware, boze bas-rumble
       const biquad = outputAudioCtx.createBiquadFilter();
       biquad.type = "lowshelf";
-      biquad.frequency.value = 350;
-      biquad.gain.value = 10;
+      biquad.frequency.value = 250;
+      biquad.gain.value = 5;
 
       subSource.connect(biquad);
       biquad.connect(subGain);
 
-      // 3. Griezelige Echo / Delay netwerk
+      // 3. Zeer subtiele, korte ruimtelijke echo (geen wazige galm, 100% verstaanbaar)
       const delay = outputAudioCtx.createDelay();
-      delay.delayTime.value = 0.28; // 280ms echo vertraging
+      delay.delayTime.value = 0.12; // Korte 120ms subtiele ruimtelijke pauze
 
       const echoFeedback = outputAudioCtx.createGain();
-      echoFeedback.gain.value = 0.40; // Echo feedback stering
+      echoFeedback.gain.value = 0.15; // Meteen uitdovend
 
       const echoGain = outputAudioCtx.createGain();
-      echoGain.gain.value = 0.35; // Volume van de echo-tail
+      echoGain.gain.value = 0.12; // Zeer zacht achtergrondeffect
 
       delay.connect(echoFeedback);
       echoFeedback.connect(delay);
@@ -882,7 +881,6 @@ async function playAudioChunk(base64Data) {
       echoGain.connect(outputAnalyser);
 
       source.connect(delay);
-      subGain.connect(delay);
 
       source.connect(outputAnalyser);
       subGain.connect(outputAnalyser);
