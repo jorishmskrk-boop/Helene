@@ -601,13 +601,14 @@ let globalCancelActiveTurn: (() => void) | null = null;
 function broadcastToDisplays(payload: any): number {
   const data = JSON.stringify(payload);
   let count = 0;
-  for (const c of displayClients) {
-    if (c.readyState === WebSocket.OPEN) {
+  const targets = new Set<WebSocket>([...displayClients, ...(wss?.clients ? Array.from(wss.clients) : [])]);
+  for (const c of targets) {
+    if (c && c.readyState === WebSocket.OPEN) {
       try {
         c.send(data);
         count++;
       } catch (e) {
-        // Genegeerd: kapotte verbinding wordt bij 'close' opgeruimd
+        // Genegeerd
       }
     }
   }
@@ -1025,12 +1026,8 @@ app.post("/api/say", async (req, res) => {
     if (!text) {
       return res.status(400).json({ status: "error", message: "Geen tekst opgegeven." });
     }
-    if (text.length > 1000) {
-      return res.status(400).json({ status: "error", message: "Bericht te lang (maximaal 1000 tekens)." });
-    }
-    if (displayClients.size === 0) {
-      addLog("error", "Mededeling niet afgespeeld: geen scherm verbonden", text);
-      return res.status(409).json({ status: "error", message: "Geen scherm verbonden. Open eerst Hélène op een scherm (📺)." });
+    if (text.length > 10000) {
+      return res.status(400).json({ status: "error", message: "Bericht te lang (maximaal 10.000 tekens)." });
     }
     addLog("system", "📢 Mededeling uitgesproken via beheer", text);
     const result = await speakToDisplays(text);
@@ -1071,7 +1068,7 @@ function renderSpreekFaceHtml(tekst: string): string {
   return html.replace("</head>", `${injection}\n</head>`);
 }
 
-// GET /spreek?tekst=... (Dynamische spraak-URL, speelt ALLEEN op dit geopende scherm)
+// GET /spreek?tekst=... (Dynamische spraak-URL, spreekt direct uit op alle kampschermen)
 app.get("/spreek", async (req, res) => {
   const tekst = (req.query.tekst || req.query.text || "").toString().trim();
   if (!tekst) {
@@ -1079,14 +1076,15 @@ app.get("/spreek", async (req, res) => {
   }
 
   try {
-    addLog("system", "📢 Spraak URL geopend (alleen lokaal afspelen)", tekst);
+    addLog("system", "📢 Spraak URL geopend — omroepen op alle schermen", tekst);
+    speakToDisplays(tekst);
     res.send(renderSpreekFaceHtml(tekst));
   } catch (err: any) {
     res.status(500).send(`Fout bij openen spreek-pagina: ${err?.message || String(err)}`);
   }
 });
 
-// GET /spreek/:id (Preset spraak-URL, speelt ALLEEN op dit geopende scherm)
+// GET /spreek/:id (Preset spraak-URL, spreekt direct uit op alle kampschermen)
 app.get("/spreek/:id", async (req, res) => {
   const presetId = req.params.id;
   const settings = getSettings();
@@ -1098,7 +1096,8 @@ app.get("/spreek/:id", async (req, res) => {
   }
 
   try {
-    addLog("system", `📢 Preset '${preset.name}' URL geopend (alleen lokaal afspelen)`, preset.text);
+    addLog("system", `📢 Preset '${preset.name}' URL geopend — omroepen op alle schermen`, preset.text);
+    speakToDisplays(preset.text);
     res.send(renderSpreekFaceHtml(preset.text));
   } catch (err: any) {
     res.status(500).send(`Fout bij openen preset URL: ${err?.message || String(err)}`);

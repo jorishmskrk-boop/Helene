@@ -1231,7 +1231,7 @@
   }
   $('sayBtn').addEventListener('click',()=>sendSay($('sayText').value,$('sayStatus'),$('sayBtn')));
   $('dashSayBtn').addEventListener('click',()=>sendSay($('dashSay').value,$('dashSayStatus'),$('dashSayBtn')));
-  $('sayText').addEventListener('input',()=>{ $('sayCount').textContent = `${$('sayText').value.length} / 1000 · Ctrl+Enter om te versturen`; });
+  $('sayText').addEventListener('input',()=>{ $('sayCount').textContent = `${$('sayText').value.length} / 10.000 · Ctrl+Enter om te versturen`; });
   $('sayText').addEventListener('keydown',(e)=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();sendSay($('sayText').value,$('sayStatus'),$('sayBtn'));}});
   document.querySelectorAll('.say-quick').forEach(b=>b.addEventListener('click',()=>{ $('sayText').value=b.dataset.text; $('sayText').dispatchEvent(new Event('input')); $('sayText').focus(); }));
 
