@@ -81,9 +81,36 @@
     height: 100%;
     display: block;
   }
+
+  #spreekUnlockPrompt {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    background: rgba(2, 132, 199, 0.95);
+    color: #ffffff;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 50px;
+    box-shadow: 0 0 30px rgba(2, 132, 199, 0.8), 0 0 10px #00ff66;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    animation: pulsePrompt 1.4s infinite ease-in-out alternate;
+    text-align: center;
+    white-space: nowrap;
+  }
+  @keyframes pulsePrompt {
+    0% { transform: translateX(-50%) scale(1); }
+    100% { transform: translateX(-50%) scale(1.06); }
+  }
 </style>
 </head>
 <body>
+
+  <div id="spreekUnlockPrompt">🔊 Tik op het scherm om te beluisteren</div>
 
   <!-- Franse Lelie Ogen (Hackerstand) -->
   <div id="scoutEyesContainer" class="spooky">
@@ -124,6 +151,11 @@
 
   const canvas = document.getElementById('waveformCanvas');
   const ctx = canvas.getContext('2d');
+  const promptEl = document.getElementById('spreekUnlockPrompt');
+
+  function hideUnlockPrompt() {
+    if (promptEl) promptEl.style.opacity = '0';
+  }
 
   function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -224,6 +256,7 @@
   }
 
   async function playSpreekAudio() {
+    hideUnlockPrompt();
     if (isPlaying) return;
     isPlaying = true;
 
@@ -231,7 +264,7 @@
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-      if (!outputAnalyser) {
+      if (!outputAnalyser && audioCtx) {
         outputAnalyser = audioCtx.createAnalyser();
         outputAnalyser.fftSize = 512;
         outputAnalyser.smoothingTimeConstant = 0.8;
@@ -249,59 +282,71 @@
 
           const data = await res.json();
           if (res.ok && data.audioBase64) {
-            const bin = atob(data.audioBase64);
-            const bytes = new Uint8Array(bin.length);
-            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            try {
+              const bin = atob(data.audioBase64);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
-            const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
+              const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
 
-            // 1. Haarscherpe, helder verstaanbare hoofdstem (tikkeltje sneller)
-            const src = audioCtx.createBufferSource();
-            src.buffer = audioBuffer;
-            src.playbackRate.value = 0.98;
+              const src = audioCtx.createBufferSource();
+              src.buffer = audioBuffer;
+              src.playbackRate.value = 0.98;
 
-            // 2. Subtiele schaduwstem
-            const subSrc = audioCtx.createBufferSource();
-            subSrc.buffer = audioBuffer;
-            subSrc.playbackRate.value = 0.88;
+              const subSrc = audioCtx.createBufferSource();
+              subSrc.buffer = audioBuffer;
+              subSrc.playbackRate.value = 0.88;
 
-            const subGain = audioCtx.createGain();
-            subGain.gain.value = 0.12; // Zeer licht volume zodat de stem 100% helder blijft
+              const subGain = audioCtx.createGain();
+              subGain.gain.value = 0.12;
 
-            const biquad = audioCtx.createBiquadFilter();
-            biquad.type = "lowshelf";
-            biquad.frequency.value = 250;
-            biquad.gain.value = 5;
+              const biquad = audioCtx.createBiquadFilter();
+              biquad.type = "lowshelf";
+              biquad.frequency.value = 250;
+              biquad.gain.value = 5;
 
-            subSrc.connect(biquad);
-            biquad.connect(subGain);
+              subSrc.connect(biquad);
+              biquad.connect(subGain);
 
-            // 3. Zeer subtiele, korte ruimtelijke echo (geen wazige galm, 100% verstaanbaar)
-            const delay = audioCtx.createDelay();
-            delay.delayTime.value = 0.12; // Korte 120ms subtiele ruimtelijke pauze
+              const delay = audioCtx.createDelay();
+              delay.delayTime.value = 0.12;
 
-            const echoFeedback = audioCtx.createGain();
-            echoFeedback.gain.value = 0.15; // Meteen uitdovend
+              const echoFeedback = audioCtx.createGain();
+              echoFeedback.gain.value = 0.15;
 
-            const echoGain = audioCtx.createGain();
-            echoGain.gain.value = 0.12; // Zeer zacht achtergrondeffect
+              const echoGain = audioCtx.createGain();
+              echoGain.gain.value = 0.12;
 
-            delay.connect(echoFeedback);
-            echoFeedback.connect(delay);
-            delay.connect(echoGain);
-            echoGain.connect(outputAnalyser);
+              delay.connect(echoFeedback);
+              echoFeedback.connect(delay);
+              delay.connect(echoGain);
+              if (outputAnalyser) delay.connect(outputAnalyser);
 
-            src.connect(delay);
+              src.connect(delay);
 
-            src.connect(outputAnalyser);
-            subGain.connect(outputAnalyser);
-            outputAnalyser.connect(audioCtx.destination);
+              if (outputAnalyser) {
+                src.connect(outputAnalyser);
+                subGain.connect(outputAnalyser);
+                outputAnalyser.connect(audioCtx.destination);
+              } else {
+                src.connect(audioCtx.destination);
+              }
 
-            await new Promise((resolve) => {
-              src.onended = resolve;
-              src.start(0);
-              subSrc.start(0);
-            });
+              await new Promise((resolve) => {
+                src.onended = resolve;
+                src.start(0);
+                subSrc.start(0);
+              });
+            } catch (webAudioErr) {
+              // HTML5 Fallback als WebAudio decode mislukt op mobiel
+              console.warn("WebAudio mislukt, HTML5 Audio fallback gebruiken:", webAudioErr);
+              const audioEl = new Audio("data:audio/mp3;base64," + data.audioBase64);
+              await new Promise((resolve) => {
+                audioEl.onended = resolve;
+                audioEl.onerror = resolve;
+                audioEl.play().catch(resolve);
+              });
+            }
           }
         } else if (seg.type === "pause" && seg.durationMs) {
           await new Promise((resolve) => setTimeout(resolve, seg.durationMs));

@@ -776,8 +776,8 @@ function updateHackerTimerUI(timerState) {
 
   if (hackerTimerInterval) clearInterval(hackerTimerInterval);
 
-  if (!timerState.paused && timerState.remainingSeconds > 0) {
-    hackerTimerInterval = setInterval(updateDisplay, 500);
+  if (!timerState.paused && timerState.active) {
+    hackerTimerInterval = setInterval(updateDisplay, 250);
   }
 }
 

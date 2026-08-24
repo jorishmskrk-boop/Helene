@@ -517,17 +517,54 @@
         </div>
       </section>
 
-      <!-- ===== FOTO MODERATIE ===== -->
+      <!-- ===== FOTO UPLOAD & MODERATIE ===== -->
       <section class="panel" id="panel-foto">
+        <!-- Card 1: Direct Foto Uploaden vanaf Beheer -->
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+              ➕ Foto Toevoegen / Uploaden
+            </h2>
+          </div>
+          <p class="help">Upload rechtstreeks een foto vanaf dit apparaat naar het kampscherm of voeg hem toe aan de moderatie-wachtrij.</p>
+
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px;">
+            <div>
+              <label style="font-weight:600;font-size:0.88rem;color:var(--ink);display:block;margin-bottom:6px;">Groepsnaam / Afzender:</label>
+              <input type="text" id="adminPhotoGroupName" placeholder="bijv. Troep Pantheras 1, Leiding, Groep A" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--ink);font-size:0.95rem;" />
+            </div>
+
+            <div>
+              <label style="font-weight:600;font-size:0.88rem;color:var(--ink);display:block;margin-bottom:6px;">Selecteer of sleep een foto:</label>
+              <div id="adminPhotoDropZone" style="border:2px dashed var(--border-strong);border-radius:12px;padding:24px;text-align:center;background:var(--surface-2);cursor:pointer;transition:all 0.2s ease;">
+                <div id="adminPhotoDropLabel" style="font-size:0.92rem;color:var(--ink-soft);font-weight:600;">
+                  📁 Klik hier of sleep een fotobestand om te uploaden
+                </div>
+                <input type="file" id="adminPhotoInput" accept="image/*" style="display:none;" />
+                <div id="adminPhotoPreviewBox" style="display:none;margin-top:14px;">
+                  <img id="adminPhotoPreviewImg" src="" alt="Preview" style="max-height:220px;max-width:100%;border-radius:10px;border:1px solid var(--border-strong);object-fit:contain;" />
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+              <button class="btn" id="btnAdminUploadApprove" style="background:var(--good);padding:10px 18px;font-size:0.9rem;">🚀 Direct Goedkeuren & Tonen op Scherm</button>
+              <button class="btn ghost" id="btnAdminUploadQueue" style="padding:10px 18px;font-size:0.9rem;">📥 Toevoegen aan Moderatie Wachtrij</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Inkomende Foto Moderatie Wachtrij -->
         <div class="card">
           <div class="card-head">
             <h2>
               <span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
-              📷 Inkomende Foto Moderatie
+              📷 Inkomende Foto Moderatie Wachtrij
             </h2>
             <button class="btn ghost" id="btnRefreshPhotos" style="padding:6px 12px;font-size:0.8rem;">🔄 Vernieuwen</button>
           </div>
-          <p class="help">Foto's die via <code>/foto</code> worden ingestuurd verschijnen hier in de wachtrij. Zodra je ze goedkeurt of afkeurt, wordt de scan-animatie op het kampscherm getoond!</p>
+          <p class="help">Foto's die via <code>/foto</code> of het beheerscherm worden ingestuurd verschijnen hier in de wachtrij. Zodra je ze goedkeurt of afkeurt, wordt de scan-animatie op het kampscherm getoond!</p>
           
           <div style="background:var(--accent-tint);border:1px solid var(--accent);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:0.84rem;font-weight:600;color:var(--accent-deep);display:flex;align-items:center;gap:8px;">
             <span>💡 <strong>Sneltoetsen:</strong> Druk op de toetsenbord-pijlen <strong>➔ (Rechts)</strong> om de bovenste foto goed te keuren of <strong>⬅️ (Links)</strong> om af te keuren.</span>
@@ -1018,7 +1055,11 @@
     renderTimerState(data.timer);
   }
 
+  let currentTimerData = null;
+  let timerLocalInterval = null;
+
   function renderTimerState(timer) {
+    currentTimerData = timer;
     const badge = $('hackerTimerBadge');
     const statusMsg = $('hackerTimerStatusMsg');
     const btnStart = $('btnStartTimer');
@@ -1031,7 +1072,7 @@
       if (btnStart) btnStart.disabled = false;
       if (btnPause) { btnPause.disabled = true; btnPause.textContent = '⏸️ Pauzeer'; }
       if (btnStop) btnStop.disabled = true;
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      if (timerLocalInterval) { clearInterval(timerLocalInterval); timerLocalInterval = null; }
       return;
     }
 
@@ -1063,6 +1104,14 @@
       if (btnPause) { btnPause.disabled = false; btnPause.textContent = '⏸️ Pauzeer'; }
       if (btnStart) btnStart.disabled = false;
     }
+
+    if (!timerLocalInterval && timer.active && !timer.paused) {
+      timerLocalInterval = setInterval(() => {
+        if (currentTimerData && currentTimerData.active && !currentTimerData.paused) {
+          renderTimerState(currentTimerData);
+        }
+      }, 1000);
+    }
   }
 
   $('btnStartTimer')?.addEventListener('click', async () => {
@@ -1080,8 +1129,6 @@
     if (ok && data) {
       toast(`⏱️ Timer gestart op ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}!`);
       renderTimerState(data.timer);
-      if (timerInterval) clearInterval(timerInterval);
-      timerInterval = setInterval(updateTimerStatus, 1000);
     } else {
       toast('❌ Kon timer niet starten');
     }
@@ -1122,7 +1169,7 @@
   });
 
   updateTimerStatus();
-  setInterval(updateTimerStatus, 3000);
+  setInterval(updateTimerStatus, 2000);
 
   // ---------- GPS Coördinaten ----------
   async function updateCoordStatus() {
@@ -1541,21 +1588,176 @@
     toast('🔄 Foto wachtrij bijgewerkt');
   });
 
-  // Toetsenbord sneltoetsen op foto tab
-  window.addEventListener('keydown', (e) => {
-    const fotoPanel = $('panel-foto');
-    if (fotoPanel && fotoPanel.classList.contains('show') && pendingPhotos.length > 0) {
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        moderatePhoto(pendingPhotos[0].id, 'approve');
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        moderatePhoto(pendingPhotos[0].id, 'reject');
+  // ---------- Admin Foto Upload ----------
+  let adminSelectedBase64 = null;
+  const adminPhotoInput = $('adminPhotoInput');
+  const adminPhotoDropZone = $('adminPhotoDropZone');
+  const adminPhotoDropLabel = $('adminPhotoDropLabel');
+  const adminPhotoPreviewBox = $('adminPhotoPreviewBox');
+  const adminPhotoPreviewImg = $('adminPhotoPreviewImg');
+
+  if (adminPhotoDropZone && adminPhotoInput) {
+    adminPhotoDropZone.addEventListener('click', (e) => {
+      if (e.target !== adminPhotoInput) {
+        adminPhotoInput.click();
       }
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      adminPhotoDropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        adminPhotoDropZone.style.borderColor = 'var(--accent)';
+        adminPhotoDropZone.style.background = 'var(--surface)';
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      adminPhotoDropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        adminPhotoDropZone.style.borderColor = 'var(--border-strong)';
+        adminPhotoDropZone.style.background = 'var(--surface-2)';
+      });
+    });
+
+    adminPhotoDropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleAdminPhotoFile(files[0]);
+      }
+    });
+
+    adminPhotoInput.addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        handleAdminPhotoFile(files[0]);
+      }
+    });
+  }
+
+  function handleAdminPhotoFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      toast('⚠️ Selecteer een geldig fotobestand (JPG, PNG, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1200;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        adminSelectedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        if (adminPhotoPreviewImg) adminPhotoPreviewImg.src = adminSelectedBase64;
+        if (adminPhotoPreviewBox) adminPhotoPreviewBox.style.display = 'block';
+        if (adminPhotoDropLabel) adminPhotoDropLabel.textContent = `[ OK ] ${file.name} geladen (klik om te wijzigen)`;
+        toast('📷 Foto geladen en gereed voor upload');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetAdminPhotoForm() {
+    adminSelectedBase64 = null;
+    if (adminPhotoInput) adminPhotoInput.value = '';
+    if (adminPhotoPreviewBox) adminPhotoPreviewBox.style.display = 'none';
+    if (adminPhotoDropLabel) adminPhotoDropLabel.textContent = '📁 Klik hier of sleep een fotobestand om te uploaden';
+  }
+
+  $('btnAdminUploadApprove')?.addEventListener('click', async () => {
+    const groupName = ($('adminPhotoGroupName')?.value || '').trim() || 'Beheerder';
+    if (!adminSelectedBase64) {
+      toast('⚠️ Selecteer eerst een foto om te uploaden.');
+      return;
+    }
+
+    const btn = $('btnAdminUploadApprove');
+    btn.disabled = true;
+    toast('⏳ Foto uploaden en versturen naar kampscherm…');
+
+    try {
+      const submitRes = await api('/api/foto/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName, imageData: adminSelectedBase64 })
+      });
+
+      if (submitRes.ok && submitRes.data && submitRes.data.photoId) {
+        const photoId = submitRes.data.photoId;
+        const modRes = await api('/api/foto/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photoId, action: 'approve' })
+        });
+
+        if (modRes.ok) {
+          toast(`🚀 Foto van '${groupName}' goedgekeurd & vertoond op het kampscherm!`);
+          resetAdminPhotoForm();
+          fetchPendingPhotos();
+        } else {
+          toast('❌ Fout bij goedkeuren van upload');
+        }
+      } else {
+        toast('❌ Fout bij uploaden foto');
+      }
+    } catch (e) {
+      toast('❌ Fout bij uploaden foto');
+    } finally {
+      btn.disabled = false;
     }
   });
 
+  $('btnAdminUploadQueue')?.addEventListener('click', async () => {
+    const groupName = ($('adminPhotoGroupName')?.value || '').trim() || 'Beheerder';
+    if (!adminSelectedBase64) {
+      toast('⚠️ Selecteer eerst een foto om te uploaden.');
+      return;
+    }
 
+    const btn = $('btnAdminUploadQueue');
+    btn.disabled = true;
+    toast('⏳ Foto toevoegen aan moderatie wachtrij…');
+
+    try {
+      const submitRes = await api('/api/foto/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName, imageData: adminSelectedBase64 })
+      });
+
+      if (submitRes.ok && submitRes.data && submitRes.data.photoId) {
+        toast(`📥 Foto van '${groupName}' toegevoegd aan moderatie wachtrij!`);
+        resetAdminPhotoForm();
+        fetchPendingPhotos();
+      } else {
+        toast('❌ Fout bij toevoegen foto aan wachtrij');
+      }
+    } catch (e) {
+      toast('❌ Fout bij toevoegen foto aan wachtrij');
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // ---------- authenticatie ----------
   async function handleLogin(){

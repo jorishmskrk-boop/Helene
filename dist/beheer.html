@@ -221,20 +221,20 @@
   @media (max-width:820px){
     .app{grid-template-columns:1fr;}
     .side{display:none;}
-    .content{padding:20px 16px 90px;}
+    .content{padding:20px 16px 100px;}
     .topbar{padding:14px 16px;}
     .tiles{grid-template-columns:1fr 1fr;}
     .opt-grid{grid-template-columns:1fr;}
     .voice-grid{grid-template-columns:1fr 1fr;}
     .grid2{grid-template-columns:1fr;}
-    .mobile-tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--surface);
-      border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom));}
-    .mobile-tabbar button{flex:1;background:none;border:none;color:var(--muted);display:flex;flex-direction:column;
-      align-items:center;gap:3px;padding:6px 0;font-size:.62rem;font-weight:700;}
-    .mobile-tabbar button svg{width:21px;height:21px;}
-    .mobile-tabbar button.active{color:var(--accent);}
+    .mobile-tabbar{display:flex;overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;scrollbar-width:none;position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--surface);border-top:1px solid var(--border);padding:6px 6px calc(6px + env(safe-area-inset-bottom));gap:4px;}
+    .mobile-tabbar::-webkit-scrollbar{display:none;}
+    .mobile-tabbar button{flex:0 0 auto;min-width:64px;background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 8px;font-size:.62rem;font-weight:700;border-radius:10px;position:relative;}
+    .mobile-tabbar button svg{width:20px;height:20px;}
+    .mobile-tabbar button.active{color:var(--accent);background:var(--accent-tint);}
   }
   @media (max-width:480px){.tiles{grid-template-columns:1fr;}.voice-grid{grid-template-columns:1fr;}}
+
 
   /* Login Modal Overlay */
   #authOverlay {
@@ -427,6 +427,40 @@
           </div>
           <div id="hackerTimerStatusMsg" class="status-msg" style="margin-top:10px;"></div>
         </div>
+
+        <!-- GPS Coördinaten Control Card -->
+        <div class="card" style="border-color:var(--accent);background:color-mix(in srgb,var(--accent-tint) 35%,var(--surface));">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico" style="background:var(--accent-tint);color:var(--accent-deep);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s-8-7.5-8-12a8 8 0 1 1 16 0c0 4.5-8 12-8 12z"/></svg>
+              </span>
+              📍 GPS Coördinaten Weergave
+            </h2>
+            <span id="coordBadge" class="chip off">Inactief</span>
+          </div>
+          <p class="help">Toon een knipperende hacker GPS-coördinaten overlay gecentreerd op alle verbonden schermen.</p>
+
+          <div class="field" style="margin-top:12px;">
+            <label class="fld" for="coordInputText">Coördinaten tekst</label>
+            <input type="text" id="coordInputText" value="52.0391589, 6.3850740" style="font-family:monospace;" />
+          </div>
+
+          <div class="quick-row" style="margin:10px 0;">
+            <button type="button" class="quick coord-quick" data-coord="52.0391589, 6.3850740">📍 Kamp (52.0391589, 6.3850740)</button>
+            <button type="button" class="quick coord-quick" data-coord="LAT: 52.0391589  LON: 6.3850740">🌐 LAT / LON Formaat</button>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+            <button type="button" id="btnStartCoord" class="btn" style="flex:2;min-height:44px;">
+              ▶️ Toon Coördinaten
+            </button>
+            <button type="button" id="btnStopCoord" class="btn ghost" style="flex:1;min-height:44px;border-color:var(--crit);color:var(--crit);" disabled>
+              ⏹️ Verberg
+            </button>
+          </div>
+          <div id="coordStatusMsg" class="status-msg" style="margin-top:10px;"></div>
+        </div>
       </section>
 
       <!-- ===== SPRAAK URL'S & PRESETS ===== -->
@@ -483,17 +517,54 @@
         </div>
       </section>
 
-      <!-- ===== FOTO MODERATIE ===== -->
+      <!-- ===== FOTO UPLOAD & MODERATIE ===== -->
       <section class="panel" id="panel-foto">
+        <!-- Card 1: Direct Foto Uploaden vanaf Beheer -->
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+              ➕ Foto Toevoegen / Uploaden
+            </h2>
+          </div>
+          <p class="help">Upload rechtstreeks een foto vanaf dit apparaat naar het kampscherm of voeg hem toe aan de moderatie-wachtrij.</p>
+
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px;">
+            <div>
+              <label style="font-weight:600;font-size:0.88rem;color:var(--ink);display:block;margin-bottom:6px;">Groepsnaam / Afzender:</label>
+              <input type="text" id="adminPhotoGroupName" placeholder="bijv. Troep Pantheras 1, Leiding, Groep A" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--ink);font-size:0.95rem;" />
+            </div>
+
+            <div>
+              <label style="font-weight:600;font-size:0.88rem;color:var(--ink);display:block;margin-bottom:6px;">Selecteer of sleep een foto:</label>
+              <div id="adminPhotoDropZone" style="border:2px dashed var(--border-strong);border-radius:12px;padding:24px;text-align:center;background:var(--surface-2);cursor:pointer;transition:all 0.2s ease;">
+                <div id="adminPhotoDropLabel" style="font-size:0.92rem;color:var(--ink-soft);font-weight:600;">
+                  📁 Klik hier of sleep een fotobestand om te uploaden
+                </div>
+                <input type="file" id="adminPhotoInput" accept="image/*" style="display:none;" />
+                <div id="adminPhotoPreviewBox" style="display:none;margin-top:14px;">
+                  <img id="adminPhotoPreviewImg" src="" alt="Preview" style="max-height:220px;max-width:100%;border-radius:10px;border:1px solid var(--border-strong);object-fit:contain;" />
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+              <button class="btn" id="btnAdminUploadApprove" style="background:var(--good);padding:10px 18px;font-size:0.9rem;">🚀 Direct Goedkeuren & Tonen op Scherm</button>
+              <button class="btn ghost" id="btnAdminUploadQueue" style="padding:10px 18px;font-size:0.9rem;">📥 Toevoegen aan Moderatie Wachtrij</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Inkomende Foto Moderatie Wachtrij -->
         <div class="card">
           <div class="card-head">
             <h2>
               <span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
-              📷 Inkomende Foto Moderatie
+              📷 Inkomende Foto Moderatie Wachtrij
             </h2>
             <button class="btn ghost" id="btnRefreshPhotos" style="padding:6px 12px;font-size:0.8rem;">🔄 Vernieuwen</button>
           </div>
-          <p class="help">Foto's die via <code>/foto</code> worden ingestuurd verschijnen hier in de wachtrij. Zodra je ze goedkeurt of afkeurt, wordt de scan-animatie op het kampscherm getoond!</p>
+          <p class="help">Foto's die via <code>/foto</code> of het beheerscherm worden ingestuurd verschijnen hier in de wachtrij. Zodra je ze goedkeurt of afkeurt, wordt de scan-animatie op het kampscherm getoond!</p>
           
           <div style="background:var(--accent-tint);border:1px solid var(--accent);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:0.84rem;font-weight:600;color:var(--accent-deep);display:flex;align-items:center;gap:8px;">
             <span>💡 <strong>Sneltoetsen:</strong> Druk op de toetsenbord-pijlen <strong>➔ (Rechts)</strong> om de bovenste foto goed te keuren of <strong>⬅️ (Links)</strong> om af te keuren.</span>
@@ -713,7 +784,9 @@
 <nav class="mobile-tabbar" id="mobnav">
   <button class="active" data-tab="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Start</button>
   <button data-tab="say"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 14-7v16L3 13v-2Z"/><path d="M17 8a3 3 0 0 1 0 8"/></svg>Omroep</button>
-  <button data-tab="kb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2V5Z"/><path d="M18 3v18"/></svg>Kennis</button>
+  <button data-tab="presets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Presets</button>
+  <button data-tab="foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Foto's <span id="fotoNavBadgeMob" class="chip warn" style="display:none;position:absolute;top:2px;right:4px;padding:0 5px;font-size:0.6rem;">0</span></button>
+  <button data-tab="kb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2V5Z"/><path d="M18 3v18"/><path d="M8 7h6M8 11h6"/></svg>Kennis</button>
   <button data-tab="voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/></svg>Stem &amp; AI</button>
   <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>Opties</button>
   <button data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="3.5" cy="6" r="1.3"/><circle cx="3.5" cy="12" r="1.3"/><circle cx="3.5" cy="18" r="1.3"/></svg>Log</button>
@@ -876,6 +949,8 @@
 
   async function loadSettings(){
     const { ok, data } = await api('/api/settings'); if(!ok||!data) return;
+    currentPresets = data.presets || [];
+    renderPresets();
     state.ttsEngine = data.ttsEngine||'gemini'; state.voiceName = data.voiceName||'Kore';
     saved = { ttsEngine:state.ttsEngine, voiceName:state.voiceName };
     $('sysInstr').value = data.systemInstruction||'';
@@ -915,7 +990,7 @@
 
   // ---------- opslaan ----------
   function currentColor(){ const s=document.querySelector('#colorOpts .color-circle.sel'); return s?s.dataset.color:'#38bdf8'; }
-  async function saveSettings(){
+  async function saveSettings(extraProps = {}){
     const payload = {
       systemInstruction: $('sysInstr').value,
       ttsEngine: state.ttsEngine,
@@ -937,6 +1012,8 @@
       spookyVoicePercentage: parseInt($('spookyVoicePct').value, 10) || 25,
       spookyVoiceName: $('spookyVoiceName').value,
       accentColor: currentColor(),
+      presets: currentPresets,
+      ...extraProps
     };
     $('saveTop').disabled=true;
     const { ok } = await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -978,7 +1055,11 @@
     renderTimerState(data.timer);
   }
 
+  let currentTimerData = null;
+  let timerLocalInterval = null;
+
   function renderTimerState(timer) {
+    currentTimerData = timer;
     const badge = $('hackerTimerBadge');
     const statusMsg = $('hackerTimerStatusMsg');
     const btnStart = $('btnStartTimer');
@@ -991,7 +1072,7 @@
       if (btnStart) btnStart.disabled = false;
       if (btnPause) { btnPause.disabled = true; btnPause.textContent = '⏸️ Pauzeer'; }
       if (btnStop) btnStop.disabled = true;
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      if (timerLocalInterval) { clearInterval(timerLocalInterval); timerLocalInterval = null; }
       return;
     }
 
@@ -1023,6 +1104,14 @@
       if (btnPause) { btnPause.disabled = false; btnPause.textContent = '⏸️ Pauzeer'; }
       if (btnStart) btnStart.disabled = false;
     }
+
+    if (!timerLocalInterval && timer.active && !timer.paused) {
+      timerLocalInterval = setInterval(() => {
+        if (currentTimerData && currentTimerData.active && !currentTimerData.paused) {
+          renderTimerState(currentTimerData);
+        }
+      }, 1000);
+    }
   }
 
   $('btnStartTimer')?.addEventListener('click', async () => {
@@ -1040,8 +1129,6 @@
     if (ok && data) {
       toast(`⏱️ Timer gestart op ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}!`);
       renderTimerState(data.timer);
-      if (timerInterval) clearInterval(timerInterval);
-      timerInterval = setInterval(updateTimerStatus, 1000);
     } else {
       toast('❌ Kon timer niet starten');
     }
@@ -1082,7 +1169,72 @@
   });
 
   updateTimerStatus();
-  setInterval(updateTimerStatus, 3000);
+  setInterval(updateTimerStatus, 2000);
+
+  // ---------- GPS Coördinaten ----------
+  async function updateCoordStatus() {
+    const { ok, data } = await api('/api/coordinates');
+    if (!ok || !data) return;
+    renderCoordState(data.coordinates);
+  }
+
+  function renderCoordState(coord) {
+    const badge = $('coordBadge');
+    const statusMsg = $('coordStatusMsg');
+    const btnStart = $('btnStartCoord');
+    const btnStop = $('btnStopCoord');
+
+    if (!coord) return;
+
+    if (coord.active) {
+      if (badge) { badge.textContent = 'Actief op scherm'; badge.className = 'chip good'; }
+      if (statusMsg) statusMsg.textContent = `📍 Coördinaten in beeld: ${coord.text}`;
+      if (btnStart) btnStart.disabled = false;
+      if (btnStop) btnStop.disabled = false;
+    } else {
+      if (badge) { badge.textContent = 'Inactief'; badge.className = 'chip off'; }
+      if (statusMsg) statusMsg.textContent = 'Coördinaten momenteel niet verborgen';
+      if (btnStart) btnStart.disabled = false;
+      if (btnStop) btnStop.disabled = true;
+    }
+  }
+
+  $('btnStartCoord')?.addEventListener('click', async () => {
+    const text = $('coordInputText').value.trim() || '52.0391589, 6.3850740';
+    const { ok, data } = await api('/api/coordinates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'start', text })
+    });
+    if (ok && data) {
+      toast('📍 Coördinaten getoond op het scherm!');
+      renderCoordState(data.coordinates);
+    } else {
+      toast('❌ Kon coördinaten niet tonen');
+    }
+  });
+
+  $('btnStopCoord')?.addEventListener('click', async () => {
+    const { ok, data } = await api('/api/coordinates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'stop' })
+    });
+    if (ok && data) {
+      toast('⏹️ Coördinaten verborgen');
+      renderCoordState(data.coordinates);
+    }
+  });
+
+  document.querySelectorAll('.coord-quick').forEach(b => {
+    b.addEventListener('click', () => {
+      $('coordInputText').value = b.dataset.coord;
+      $('btnStartCoord').click();
+    });
+  });
+
+  updateCoordStatus();
+  setInterval(updateCoordStatus, 3000);
 
   // ---------- stem beluisteren ----------
   let testCtx=null;
@@ -1126,7 +1278,7 @@
   }
   $('sayBtn').addEventListener('click',()=>sendSay($('sayText').value,$('sayStatus'),$('sayBtn')));
   $('dashSayBtn').addEventListener('click',()=>sendSay($('dashSay').value,$('dashSayStatus'),$('dashSayBtn')));
-  $('sayText').addEventListener('input',()=>{ $('sayCount').textContent = `${$('sayText').value.length} / 1000 · Ctrl+Enter om te versturen`; });
+  $('sayText').addEventListener('input',()=>{ $('sayCount').textContent = `${$('sayText').value.length} / 10.000 · Ctrl+Enter om te versturen`; });
   $('sayText').addEventListener('keydown',(e)=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();sendSay($('sayText').value,$('sayStatus'),$('sayBtn'));}});
   document.querySelectorAll('.say-quick').forEach(b=>b.addEventListener('click',()=>{ $('sayText').value=b.dataset.text; $('sayText').dispatchEvent(new Event('input')); $('sayText').focus(); }));
 
@@ -1195,7 +1347,8 @@
             <span class="mono" style="font-size:0.75rem;background:var(--surface);padding:2px 8px;border-radius:6px;border:1px solid var(--border-strong);color:var(--accent);margin-left:8px;">/spreek/${esc(p.id)}</span>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn ghost btn-test-preset" data-id="${esc(p.id)}" style="padding:5px 10px;font-size:0.8rem;" title="Test afspelen op kampscherm">▶️ Test</button>
+            <button class="btn ghost btn-test-preset" data-text="${esc(p.text)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;" title="Omroepen op het hoofdscherm">▶️ Omroepen op Hoofdscherm</button>
+            <button class="btn ghost btn-local-preset" data-text="${esc(p.text)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;" title="Beluister op dit mobiel/laptop">🔊 Beluister hier</button>
             <button class="btn btn-copy-preset" data-url="${esc(fullUrl)}" style="padding:5px 10px;font-size:0.8rem;">📋 Kopieer URL</button>
             <button class="btn ghost btn-qr-preset" data-url="${esc(fullUrl)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;">📱 QR Code</button>
             <button class="btn ghost btn-del-preset" data-idx="${idx}" style="padding:5px 8px;font-size:0.8rem;color:var(--crit);border-color:var(--crit);" title="Verwijderen">🗑️</button>
@@ -1208,10 +1361,56 @@
 
     list.querySelectorAll('.btn-test-preset').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const res = await api(`/spreek/${encodeURIComponent(id)}`);
-        if (res.ok) toast('📢 Preset afgespeeld!');
-        else toast('❌ Fout bij afspelen');
+        const text = btn.dataset.text;
+        const name = btn.dataset.name;
+        if (!text) {
+          toast('❌ Geen tekst in preset');
+          return;
+        }
+        btn.disabled = true;
+        const res = await api('/api/say', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        btn.disabled = false;
+        if (res.ok) {
+          const count = (res.data && res.data.displays) || 0;
+          if (count === 0) {
+            toast('⚠️ Geen scherm verbonden! Open Hélène op het hoofdscherm (📺 /hoofdscherm).');
+          } else {
+            toast(`📢 Preset '${name}' omgeroepen op ${count} scherm(en)!`);
+          }
+        } else {
+          toast('❌ ' + ((res.data && res.data.message) || 'Fout bij omroepen naar hoofdscherm'));
+        }
+      });
+    });
+
+    list.querySelectorAll('.btn-local-preset').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = btn.dataset.text;
+        const name = btn.dataset.name;
+        if (!text) return;
+        btn.disabled = true;
+        toast(`⏳ Preset '${name}' lokaal genereren…`);
+        try {
+          const res = await api('/api/tts/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          });
+          btn.disabled = false;
+          if (res.ok && res.data && res.data.audioBase64) {
+            await playAudio(res.data.audioBase64);
+            toast(`🔊 '${name}' lokaal afgespeeld!`);
+          } else {
+            toast('❌ ' + ((res.data && res.data.message) || 'Fout bij genereren audio'));
+          }
+        } catch (e) {
+          btn.disabled = false;
+          toast('❌ Kon audio niet lokaal afspelen');
+        }
       });
     });
 
@@ -1308,6 +1507,7 @@
   function renderQueue() {
     const container = $('photoQueueContainer');
     const badge = $('fotoNavBadge');
+    const badgeMob = $('fotoNavBadgeMob');
     if (!container) return;
 
     if (badge) {
@@ -1316,6 +1516,14 @@
         badge.style.display = 'inline-flex';
       } else {
         badge.style.display = 'none';
+      }
+    }
+    if (badgeMob) {
+      if (pendingPhotos.length > 0) {
+        badgeMob.textContent = pendingPhotos.length;
+        badgeMob.style.display = 'inline-flex';
+      } else {
+        badgeMob.style.display = 'none';
       }
     }
 
@@ -1380,71 +1588,176 @@
     toast('🔄 Foto wachtrij bijgewerkt');
   });
 
-  // Toetsenbord sneltoetsen op foto tab
-  window.addEventListener('keydown', (e) => {
-    const fotoPanel = $('panel-foto');
-    if (fotoPanel && fotoPanel.classList.contains('show') && pendingPhotos.length > 0) {
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        moderatePhoto(pendingPhotos[0].id, 'approve');
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        moderatePhoto(pendingPhotos[0].id, 'reject');
+  // ---------- Admin Foto Upload ----------
+  let adminSelectedBase64 = null;
+  const adminPhotoInput = $('adminPhotoInput');
+  const adminPhotoDropZone = $('adminPhotoDropZone');
+  const adminPhotoDropLabel = $('adminPhotoDropLabel');
+  const adminPhotoPreviewBox = $('adminPhotoPreviewBox');
+  const adminPhotoPreviewImg = $('adminPhotoPreviewImg');
+
+  if (adminPhotoDropZone && adminPhotoInput) {
+    adminPhotoDropZone.addEventListener('click', (e) => {
+      if (e.target !== adminPhotoInput) {
+        adminPhotoInput.click();
       }
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      adminPhotoDropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        adminPhotoDropZone.style.borderColor = 'var(--accent)';
+        adminPhotoDropZone.style.background = 'var(--surface)';
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      adminPhotoDropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        adminPhotoDropZone.style.borderColor = 'var(--border-strong)';
+        adminPhotoDropZone.style.background = 'var(--surface-2)';
+      });
+    });
+
+    adminPhotoDropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleAdminPhotoFile(files[0]);
+      }
+    });
+
+    adminPhotoInput.addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        handleAdminPhotoFile(files[0]);
+      }
+    });
+  }
+
+  function handleAdminPhotoFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      toast('⚠️ Selecteer een geldig fotobestand (JPG, PNG, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1200;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        adminSelectedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        if (adminPhotoPreviewImg) adminPhotoPreviewImg.src = adminSelectedBase64;
+        if (adminPhotoPreviewBox) adminPhotoPreviewBox.style.display = 'block';
+        if (adminPhotoDropLabel) adminPhotoDropLabel.textContent = `[ OK ] ${file.name} geladen (klik om te wijzigen)`;
+        toast('📷 Foto geladen en gereed voor upload');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetAdminPhotoForm() {
+    adminSelectedBase64 = null;
+    if (adminPhotoInput) adminPhotoInput.value = '';
+    if (adminPhotoPreviewBox) adminPhotoPreviewBox.style.display = 'none';
+    if (adminPhotoDropLabel) adminPhotoDropLabel.textContent = '📁 Klik hier of sleep een fotobestand om te uploaden';
+  }
+
+  $('btnAdminUploadApprove')?.addEventListener('click', async () => {
+    const groupName = ($('adminPhotoGroupName')?.value || '').trim() || 'Beheerder';
+    if (!adminSelectedBase64) {
+      toast('⚠️ Selecteer eerst een foto om te uploaden.');
+      return;
+    }
+
+    const btn = $('btnAdminUploadApprove');
+    btn.disabled = true;
+    toast('⏳ Foto uploaden en versturen naar kampscherm…');
+
+    try {
+      const submitRes = await api('/api/foto/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName, imageData: adminSelectedBase64 })
+      });
+
+      if (submitRes.ok && submitRes.data && submitRes.data.photoId) {
+        const photoId = submitRes.data.photoId;
+        const modRes = await api('/api/foto/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photoId, action: 'approve' })
+        });
+
+        if (modRes.ok) {
+          toast(`🚀 Foto van '${groupName}' goedgekeurd & vertoond op het kampscherm!`);
+          resetAdminPhotoForm();
+          fetchPendingPhotos();
+        } else {
+          toast('❌ Fout bij goedkeuren van upload');
+        }
+      } else {
+        toast('❌ Fout bij uploaden foto');
+      }
+    } catch (e) {
+      toast('❌ Fout bij uploaden foto');
+    } finally {
+      btn.disabled = false;
     }
   });
 
-  // Update loadSettings to populate presets
-  const originalLoadSettings = loadSettings;
-  loadSettings = async function() {
-    const { ok, data } = await api('/api/settings');
-    if (ok && data) {
-      currentPresets = data.presets || [];
-      renderPresets();
+  $('btnAdminUploadQueue')?.addEventListener('click', async () => {
+    const groupName = ($('adminPhotoGroupName')?.value || '').trim() || 'Beheerder';
+    if (!adminSelectedBase64) {
+      toast('⚠️ Selecteer eerst een foto om te uploaden.');
+      return;
     }
-    await originalLoadSettings();
-  };
 
-  // Update saveSettings to preserve presets
-  const originalSaveSettings = saveSettings;
-  saveSettings = async function(extraProps = {}) {
-    const payload = {
-      systemInstruction: $('sysInstr').value,
-      ttsEngine: state.ttsEngine,
-      voiceName: state.voiceName,
-      elevenlabsApiKey: $('elKey').value.trim(),
-      elevenlabsVoiceId: $('elVoice').value.trim(),
-      elevenlabsModelId: $('elModel').value,
-      openrouterApiKey: $('orKey').value.trim(),
-      openrouterModel: $('orModel').value,
-      modelName: $('modelName').value,
-      liveModel: $('liveModel').value,
-      idleTimeoutMs: parseInt($('idleSec').value,10)*1000,
-      maxSessionDurationMs: parseInt($('maxMin').value,10)*60000,
-      showSubtitles: $('showSubs').checked,
-      sleepMode: $('sleepMode').checked,
-      leidingMode: $('leidingMode').checked,
-      autoResetLeidingMode: $('autoResetLeidingMode').checked,
-      spookyVoiceMode: $('spookyVoiceMode').checked,
-      spookyVoicePercentage: parseInt($('spookyVoicePct').value, 10) || 25,
-      spookyVoiceName: $('spookyVoiceName').value,
-      accentColor: currentColor(),
-      presets: currentPresets,
-      ...extraProps
-    };
-    const { ok, data } = await api('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (ok) {
-      saved = { ttsEngine: state.ttsEngine, voiceName: state.voiceName };
-      updateActiveVoice();
-      toast('💾 Instellingen opgeslagen');
-    } else {
-      toast('❌ Opslaan mislukt');
+    const btn = $('btnAdminUploadQueue');
+    btn.disabled = true;
+    toast('⏳ Foto toevoegen aan moderatie wachtrij…');
+
+    try {
+      const submitRes = await api('/api/foto/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName, imageData: adminSelectedBase64 })
+      });
+
+      if (submitRes.ok && submitRes.data && submitRes.data.photoId) {
+        toast(`📥 Foto van '${groupName}' toegevoegd aan moderatie wachtrij!`);
+        resetAdminPhotoForm();
+        fetchPendingPhotos();
+      } else {
+        toast('❌ Fout bij toevoegen foto aan wachtrij');
+      }
+    } catch (e) {
+      toast('❌ Fout bij toevoegen foto aan wachtrij');
+    } finally {
+      btn.disabled = false;
     }
-  };
+  });
 
   // ---------- authenticatie ----------
   async function handleLogin(){
