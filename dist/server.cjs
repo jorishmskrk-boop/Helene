@@ -834,7 +834,9 @@ app.post("/api/foto/moderate", (req, res) => {
       status: photo.status,
       spokenText
     });
-    speakToDisplays(spokenText).catch((e) => console.error("[SERVER] Fout bij uitspreken foto-oordeel:", e));
+    setTimeout(() => {
+      speakToDisplays(spokenText).catch((e) => console.error("[SERVER] Fout bij uitspreken foto-oordeel:", e));
+    }, 3800);
     addLog("system", photo.status === "approved" ? "\u2705 Foto goedgekeurd" : "\u274C Foto afgekeurd", `Groep: ${photo.groupName} - "${spokenText}"`);
     res.json({ status: "ok", count, photoId: photo.id, newStatus: photo.status, spokenText });
   } catch (err) {

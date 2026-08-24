@@ -1167,12 +1167,12 @@ function handlePhotoScanned(msg) {
   // 1. Toon de foto fullscreen op het scherm
   overlay.classList.add("active");
 
-  // 2. Start de lichtbalk scan sweep
+  // 2. Start de rustige lichtbalk scan sweep (duurt 3.8s)
   setTimeout(() => {
     scanBeam.classList.add("scanning");
   }, 200);
 
-  // 3. Kleur de scanbalk groen of rood zodra de scan compleet is
+  // 3. Kleur de scanbalk groen of rood zodra de scan compleet is (na 3.8s)
   setTimeout(() => {
     scanBeam.classList.remove("scanning");
 
@@ -1181,13 +1181,13 @@ function handlePhotoScanned(msg) {
     } else {
       overlay.classList.add("rejected");
     }
-  }, 2400);
+  }, 3800);
 
-  // 4. Houd de foto fullscreen in beeld gedurende het uitspreken (~6.5 seconden)
+  // 4. Houd de foto fullscreen in beeld gedurende het uitspreken (~10.5 seconden)
   setTimeout(() => {
     overlay.classList.remove("active");
     setTimeout(() => {
       overlay.className = "";
     }, 500);
-  }, 6500);
+  }, 10500);
 }

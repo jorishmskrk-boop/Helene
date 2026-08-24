@@ -1005,8 +1005,10 @@ app.post("/api/foto/moderate", (req, res) => {
       spokenText,
     });
 
-    // Spreek het oordeel uit via Hélène's stem
-    speakToDisplays(spokenText).catch((e) => console.error("[SERVER] Fout bij uitspreken foto-oordeel:", e));
+    // Spreek het oordeel uit via Hélène's stem pas NADAT de scan van 3.8s is voltooid
+    setTimeout(() => {
+      speakToDisplays(spokenText).catch((e) => console.error("[SERVER] Fout bij uitspreken foto-oordeel:", e));
+    }, 3800);
 
     addLog("system", photo.status === "approved" ? "✅ Foto goedgekeurd" : "❌ Foto afgekeurd", `Groep: ${photo.groupName} - "${spokenText}"`);
     res.json({ status: "ok", count, photoId: photo.id, newStatus: photo.status, spokenText });
