@@ -644,7 +644,7 @@ interface SpeechSegment {
 // Splitst tekst op pauze-markeringen zoals [stilte: 2s], [pauze: 1.5], [stilte], <break time="2s"/>, etc.
 function parseTextWithPauses(text: string): SpeechSegment[] {
   const segments: SpeechSegment[] = [];
-  const regex = /\[(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+  const regex = /\[\s*(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\s*\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -691,7 +691,7 @@ async function speakToDisplays(text: string, forceSpooky: boolean = false): Prom
   const isSpooky = forceSpooky || settings.spookyVoiceMode === true;
 
   // Maak de ondertitel schoon van [stilte: ...] tags
-  const cleanSubtitleText = text.replace(/\[(?:stilte|pauze|pause)[^\]]*\]|<break[^>]*>/gi, "").trim();
+  const cleanSubtitleText = text.replace(/\s*\[\s*(?:stilte|pauze|pause)[^\]]*\]\s*|<break[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
 
   const displays = broadcastToDisplays({ type: "interrupted" });
   broadcastToDisplays({ type: "subtitle", text: cleanSubtitleText });
@@ -967,7 +967,7 @@ function renderSpreekFaceHtml(tekst: string): string {
   return html.replace("</head>", `${injection}\n</head>`);
 }
 
-// GET /spreek?tekst=... (Dynamische spraak-URL met Hélène gezicht)
+// GET /spreek?tekst=... (Dynamische spraak-URL, speelt ALLEEN op dit geopende scherm)
 app.get("/spreek", async (req, res) => {
   const tekst = (req.query.tekst || req.query.text || "").toString().trim();
   if (!tekst) {
@@ -975,15 +975,14 @@ app.get("/spreek", async (req, res) => {
   }
 
   try {
-    await speakToDisplays(tekst);
-    addLog("system", "📢 Spraak gestart via URL /spreek", tekst);
+    addLog("system", "📢 Spraak URL geopend (alleen lokaal afspelen)", tekst);
     res.send(renderSpreekFaceHtml(tekst));
   } catch (err: any) {
-    res.status(500).send(`Fout bij uitspreken: ${err?.message || String(err)}`);
+    res.status(500).send(`Fout bij openen spreek-pagina: ${err?.message || String(err)}`);
   }
 });
 
-// GET /spreek/:id (Preset spraak-URL met Hélène gezicht)
+// GET /spreek/:id (Preset spraak-URL, speelt ALLEEN op dit geopende scherm)
 app.get("/spreek/:id", async (req, res) => {
   const presetId = req.params.id;
   const settings = getSettings();
@@ -995,11 +994,10 @@ app.get("/spreek/:id", async (req, res) => {
   }
 
   try {
-    await speakToDisplays(preset.text);
-    addLog("system", `📢 Preset '${preset.name}' uitgesproken via URL /spreek/${preset.id}`, preset.text);
+    addLog("system", `📢 Preset '${preset.name}' URL geopend (alleen lokaal afspelen)`, preset.text);
     res.send(renderSpreekFaceHtml(preset.text));
   } catch (err: any) {
-    res.status(500).send(`Fout bij uitspreken preset: ${err?.message || String(err)}`);
+    res.status(500).send(`Fout bij openen preset URL: ${err?.message || String(err)}`);
   }
 });
 

@@ -533,7 +533,7 @@ function chunkTextForTTS(text) {
 }
 function parseTextWithPauses(text) {
   const segments = [];
-  const regex = /\[(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+  const regex = /\[\s*(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\s*\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
   let lastIndex = 0;
   let match;
   while ((match = regex.exec(text)) !== null) {
@@ -568,7 +568,7 @@ async function speakToDisplays(text, forceSpooky = false) {
   const settings = getSettings();
   const segments = parseTextWithPauses(text);
   const isSpooky = forceSpooky || settings.spookyVoiceMode === true;
-  const cleanSubtitleText = text.replace(/\[(?:stilte|pauze|pause)[^\]]*\]|<break[^>]*>/gi, "").trim();
+  const cleanSubtitleText = text.replace(/\s*\[\s*(?:stilte|pauze|pause)[^\]]*\]\s*|<break[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
   const displays = broadcastToDisplays({ type: "interrupted" });
   broadcastToDisplays({ type: "subtitle", text: cleanSubtitleText });
   let chunkCount = 0;
@@ -802,11 +802,10 @@ app.get("/spreek", async (req, res) => {
     return res.status(400).send(`<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"/><title>Spreek | H\xE9l\xE8ne</title><style>body{font-family:sans-serif;padding:40px;background:#0f172a;color:#f8fafc;text-align:center;}code{background:#334155;padding:4px 8px;border-radius:6px;}</style></head><body><h1>\u26A0\uFE0F Geen tekst opgegeven</h1><p>Gebruik: <code>/spreek?tekst=Jouw+bericht</code></p></body></html>`);
   }
   try {
-    await speakToDisplays(tekst);
-    addLog("system", "\u{1F4E2} Spraak gestart via URL /spreek", tekst);
+    addLog("system", "\u{1F4E2} Spraak URL geopend (alleen lokaal afspelen)", tekst);
     res.send(renderSpreekFaceHtml(tekst));
   } catch (err) {
-    res.status(500).send(`Fout bij uitspreken: ${err?.message || String(err)}`);
+    res.status(500).send(`Fout bij openen spreek-pagina: ${err?.message || String(err)}`);
   }
 });
 app.get("/spreek/:id", async (req, res) => {
@@ -818,11 +817,10 @@ app.get("/spreek/:id", async (req, res) => {
     return res.status(404).send(`<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"/><title>Preset Niet Gevonden</title><style>body{font-family:sans-serif;padding:40px;background:#0f172a;color:#f8fafc;text-align:center;}code{background:#334155;padding:4px 8px;border-radius:6px;}</style></head><body><h1>\u274C Preset niet gevonden</h1><p>Geen preset gevonden met sleutel: <code>${presetId}</code></p></body></html>`);
   }
   try {
-    await speakToDisplays(preset.text);
-    addLog("system", `\u{1F4E2} Preset '${preset.name}' uitgesproken via URL /spreek/${preset.id}`, preset.text);
+    addLog("system", `\u{1F4E2} Preset '${preset.name}' URL geopend (alleen lokaal afspelen)`, preset.text);
     res.send(renderSpreekFaceHtml(preset.text));
   } catch (err) {
-    res.status(500).send(`Fout bij uitspreken preset: ${err?.message || String(err)}`);
+    res.status(500).send(`Fout bij openen preset URL: ${err?.message || String(err)}`);
   }
 });
 app.post("/api/foto/submit", (req, res) => {

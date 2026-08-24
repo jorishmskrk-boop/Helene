@@ -199,7 +199,7 @@
 
   function parseTextWithPauses(text) {
     const segments = [];
-    const regex = /\[(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+    const regex = /\[\s*(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\s*\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
     let lastIndex = 0;
     let match;
 
