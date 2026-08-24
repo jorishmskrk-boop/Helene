@@ -427,6 +427,40 @@
           </div>
           <div id="hackerTimerStatusMsg" class="status-msg" style="margin-top:10px;"></div>
         </div>
+
+        <!-- GPS Coördinaten Control Card -->
+        <div class="card" style="border-color:var(--accent);background:color-mix(in srgb,var(--accent-tint) 35%,var(--surface));">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico" style="background:var(--accent-tint);color:var(--accent-deep);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s-8-7.5-8-12a8 8 0 1 1 16 0c0 4.5-8 12-8 12z"/></svg>
+              </span>
+              📍 GPS Coördinaten Weergave
+            </h2>
+            <span id="coordBadge" class="chip off">Inactief</span>
+          </div>
+          <p class="help">Toon een knipperende hacker GPS-coördinaten overlay gecentreerd op alle verbonden schermen.</p>
+
+          <div class="field" style="margin-top:12px;">
+            <label class="fld" for="coordInputText">Coördinaten tekst</label>
+            <input type="text" id="coordInputText" value="52.0391589, 6.3850740" style="font-family:monospace;" />
+          </div>
+
+          <div class="quick-row" style="margin:10px 0;">
+            <button type="button" class="quick coord-quick" data-coord="52.0391589, 6.3850740">📍 Kamp (52.0391589, 6.3850740)</button>
+            <button type="button" class="quick coord-quick" data-coord="LAT: 52.0391589  LON: 6.3850740">🌐 LAT / LON Formaat</button>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+            <button type="button" id="btnStartCoord" class="btn" style="flex:2;min-height:44px;">
+              ▶️ Toon Coördinaten
+            </button>
+            <button type="button" id="btnStopCoord" class="btn ghost" style="flex:1;min-height:44px;border-color:var(--crit);color:var(--crit);" disabled>
+              ⏹️ Verberg
+            </button>
+          </div>
+          <div id="coordStatusMsg" class="status-msg" style="margin-top:10px;"></div>
+        </div>
       </section>
 
       <!-- ===== SPRAAK URL'S & PRESETS ===== -->
@@ -878,6 +912,8 @@
 
   async function loadSettings(){
     const { ok, data } = await api('/api/settings'); if(!ok||!data) return;
+    currentPresets = data.presets || [];
+    renderPresets();
     state.ttsEngine = data.ttsEngine||'gemini'; state.voiceName = data.voiceName||'Kore';
     saved = { ttsEngine:state.ttsEngine, voiceName:state.voiceName };
     $('sysInstr').value = data.systemInstruction||'';
@@ -917,7 +953,7 @@
 
   // ---------- opslaan ----------
   function currentColor(){ const s=document.querySelector('#colorOpts .color-circle.sel'); return s?s.dataset.color:'#38bdf8'; }
-  async function saveSettings(){
+  async function saveSettings(extraProps = {}){
     const payload = {
       systemInstruction: $('sysInstr').value,
       ttsEngine: state.ttsEngine,
@@ -939,6 +975,8 @@
       spookyVoicePercentage: parseInt($('spookyVoicePct').value, 10) || 25,
       spookyVoiceName: $('spookyVoiceName').value,
       accentColor: currentColor(),
+      presets: currentPresets,
+      ...extraProps
     };
     $('saveTop').disabled=true;
     const { ok } = await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -1086,6 +1124,71 @@
   updateTimerStatus();
   setInterval(updateTimerStatus, 3000);
 
+  // ---------- GPS Coördinaten ----------
+  async function updateCoordStatus() {
+    const { ok, data } = await api('/api/coordinates');
+    if (!ok || !data) return;
+    renderCoordState(data.coordinates);
+  }
+
+  function renderCoordState(coord) {
+    const badge = $('coordBadge');
+    const statusMsg = $('coordStatusMsg');
+    const btnStart = $('btnStartCoord');
+    const btnStop = $('btnStopCoord');
+
+    if (!coord) return;
+
+    if (coord.active) {
+      if (badge) { badge.textContent = 'Actief op scherm'; badge.className = 'chip good'; }
+      if (statusMsg) statusMsg.textContent = `📍 Coördinaten in beeld: ${coord.text}`;
+      if (btnStart) btnStart.disabled = false;
+      if (btnStop) btnStop.disabled = false;
+    } else {
+      if (badge) { badge.textContent = 'Inactief'; badge.className = 'chip off'; }
+      if (statusMsg) statusMsg.textContent = 'Coördinaten momenteel niet verborgen';
+      if (btnStart) btnStart.disabled = false;
+      if (btnStop) btnStop.disabled = true;
+    }
+  }
+
+  $('btnStartCoord')?.addEventListener('click', async () => {
+    const text = $('coordInputText').value.trim() || '52.0391589, 6.3850740';
+    const { ok, data } = await api('/api/coordinates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'start', text })
+    });
+    if (ok && data) {
+      toast('📍 Coördinaten getoond op het scherm!');
+      renderCoordState(data.coordinates);
+    } else {
+      toast('❌ Kon coördinaten niet tonen');
+    }
+  });
+
+  $('btnStopCoord')?.addEventListener('click', async () => {
+    const { ok, data } = await api('/api/coordinates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'stop' })
+    });
+    if (ok && data) {
+      toast('⏹️ Coördinaten verborgen');
+      renderCoordState(data.coordinates);
+    }
+  });
+
+  document.querySelectorAll('.coord-quick').forEach(b => {
+    b.addEventListener('click', () => {
+      $('coordInputText').value = b.dataset.coord;
+      $('btnStartCoord').click();
+    });
+  });
+
+  updateCoordStatus();
+  setInterval(updateCoordStatus, 3000);
+
   // ---------- stem beluisteren ----------
   let testCtx=null;
   async function playAudio(base64){
@@ -1197,7 +1300,7 @@
             <span class="mono" style="font-size:0.75rem;background:var(--surface);padding:2px 8px;border-radius:6px;border:1px solid var(--border-strong);color:var(--accent);margin-left:8px;">/spreek/${esc(p.id)}</span>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn ghost btn-test-preset" data-id="${esc(p.id)}" style="padding:5px 10px;font-size:0.8rem;" title="Test afspelen op hoofdscherm">▶️ Test op Hoofdscherm</button>
+            <button class="btn ghost btn-test-preset" data-text="${esc(p.text)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;" title="Test afspelen op hoofdscherm">▶️ Test op Hoofdscherm</button>
             <button class="btn btn-copy-preset" data-url="${esc(fullUrl)}" style="padding:5px 10px;font-size:0.8rem;">📋 Kopieer URL</button>
             <button class="btn ghost btn-qr-preset" data-url="${esc(fullUrl)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;">📱 QR Code</button>
             <button class="btn ghost btn-del-preset" data-idx="${idx}" style="padding:5px 8px;font-size:0.8rem;color:var(--crit);border-color:var(--crit);" title="Verwijderen">🗑️</button>
@@ -1210,21 +1313,21 @@
 
     list.querySelectorAll('.btn-test-preset').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const preset = (currentPresets || []).find(p => p.id === id);
-        if (!preset || !preset.text) {
-          toast('❌ Preset niet gevonden');
+        const text = btn.dataset.text;
+        const name = btn.dataset.name;
+        if (!text) {
+          toast('❌ Geen tekst in preset');
           return;
         }
         btn.disabled = true;
         const res = await api('/api/say', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: preset.text })
+          body: JSON.stringify({ text })
         });
         btn.disabled = false;
         if (res.ok) {
-          toast(`📢 Preset '${preset.name}' verzonden naar het hoofdscherm!`);
+          toast(`📢 Preset '${name}' verzonden naar het hoofdscherm!`);
         } else {
           toast('❌ ' + ((res.data && res.data.message) || 'Fout bij verzenden naar hoofdscherm'));
         }
@@ -1419,57 +1522,7 @@
     }
   });
 
-  // Update loadSettings to populate presets
-  const originalLoadSettings = loadSettings;
-  loadSettings = async function() {
-    const { ok, data } = await api('/api/settings');
-    if (ok && data) {
-      currentPresets = data.presets || [];
-      renderPresets();
-    }
-    await originalLoadSettings();
-  };
 
-  // Update saveSettings to preserve presets
-  const originalSaveSettings = saveSettings;
-  saveSettings = async function(extraProps = {}) {
-    const payload = {
-      systemInstruction: $('sysInstr').value,
-      ttsEngine: state.ttsEngine,
-      voiceName: state.voiceName,
-      elevenlabsApiKey: $('elKey').value.trim(),
-      elevenlabsVoiceId: $('elVoice').value.trim(),
-      elevenlabsModelId: $('elModel').value,
-      openrouterApiKey: $('orKey').value.trim(),
-      openrouterModel: $('orModel').value,
-      modelName: $('modelName').value,
-      liveModel: $('liveModel').value,
-      idleTimeoutMs: parseInt($('idleSec').value,10)*1000,
-      maxSessionDurationMs: parseInt($('maxMin').value,10)*60000,
-      showSubtitles: $('showSubs').checked,
-      sleepMode: $('sleepMode').checked,
-      leidingMode: $('leidingMode').checked,
-      autoResetLeidingMode: $('autoResetLeidingMode').checked,
-      spookyVoiceMode: $('spookyVoiceMode').checked,
-      spookyVoicePercentage: parseInt($('spookyVoicePct').value, 10) || 25,
-      spookyVoiceName: $('spookyVoiceName').value,
-      accentColor: currentColor(),
-      presets: currentPresets,
-      ...extraProps
-    };
-    const { ok, data } = await api('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (ok) {
-      saved = { ttsEngine: state.ttsEngine, voiceName: state.voiceName };
-      updateActiveVoice();
-      toast('💾 Instellingen opgeslagen');
-    } else {
-      toast('❌ Opslaan mislukt');
-    }
-  };
 
   // ---------- authenticatie ----------
   async function handleLogin(){

@@ -508,6 +508,9 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
       } else if (msg.type === "hacker_timer_update") {
         log(`⏱️ Hacker timer update ontvangen: action=${msg.action || "sync"}`);
         updateHackerTimerUI(msg.timer);
+      } else if (msg.type === "coordinates_update") {
+        log(`📍 GPS Coördinaten update ontvangen: active=${msg.coordinates?.active}`);
+        updateCoordinatesUI(msg.coordinates);
       } else if (msg.type === "photo_scanned") {
         log(`📸 Foto scan ontvangen for ${msg.groupName}: ${msg.status}`);
         handlePhotoScanned(msg);
@@ -520,6 +523,23 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
       log(`Fout bij verwerken WebSocket bericht: ${err}`);
     }
   };
+
+function updateCoordinatesUI(coordState) {
+  const overlay = document.getElementById("hackerCoordinatesOverlay");
+  const display = document.getElementById("hackerCoordDisplay");
+
+  if (!overlay || !display) return;
+
+  if (!coordState || !coordState.active) {
+    overlay.classList.remove("active");
+    document.body.classList.remove("coordinates-active");
+    return;
+  }
+
+  display.textContent = coordState.text || "52.0391589, 6.3850740";
+  overlay.classList.add("active");
+  document.body.classList.add("coordinates-active");
+}
 
 // ============================================================================
 // DIGITALE HACKER TIMER LOGICA, 7-SEGMENT & GELUID

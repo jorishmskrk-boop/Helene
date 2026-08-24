@@ -961,6 +961,92 @@
         0% { opacity: 0.85; }
         100% { opacity: 1; filter: drop-shadow(0 0 35px #ef4444) drop-shadow(0 0 70px #ef4444); }
       }
+
+      /* Gecentreerde Hacker GPS Coördinaten Overlay */
+      body.coordinates-active #scoutEyesContainer,
+      body.coordinates-active #canvasContainer,
+      body.coordinates-active #zzzContainer,
+      body.coordinates-active #thinkingSpinner,
+      body.coordinates-active #bottomSection {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      #hackerCoordinatesOverlay {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9900;
+        pointer-events: none;
+      }
+      #hackerCoordinatesOverlay.active {
+        display: flex;
+      }
+      .hacker-coord-box {
+        background: rgba(6, 8, 14, 0.95);
+        border: 3px solid #00ff66;
+        border-radius: 20px;
+        padding: 26px 48px;
+        box-shadow: 0 0 45px rgba(0, 255, 102, 0.45), inset 0 0 25px rgba(0, 255, 102, 0.2);
+        text-align: center;
+        backdrop-filter: blur(12px);
+        animation: coordBlinkPulse 1.8s infinite ease-in-out alternate;
+      }
+      .hacker-coord-label {
+        font-size: clamp(1rem, 1.6vw, 1.6rem);
+        font-weight: 800;
+        color: #00f0ff;
+        letter-spacing: 0.3em;
+        margin-bottom: 12px;
+        text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+        text-transform: uppercase;
+      }
+      .hacker-coord-display {
+        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+        font-size: clamp(2.8rem, 5.5vw, 5.5rem);
+        font-weight: 900;
+        color: #00ff66;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 20px rgba(0, 255, 102, 0.9), 0 0 40px rgba(0, 255, 102, 0.5);
+        line-height: 1.15;
+        animation: coordTextGlow 1.2s infinite ease-in-out alternate;
+      }
+      .hacker-coord-sub {
+        font-size: clamp(0.85rem, 1.2vw, 1.2rem);
+        font-weight: 700;
+        color: #38bdf8;
+        letter-spacing: 0.25em;
+        margin-top: 14px;
+        text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+        text-transform: uppercase;
+      }
+      @keyframes coordBlinkPulse {
+        0% {
+          border-color: #00ff66;
+          box-shadow: 0 0 35px rgba(0, 255, 102, 0.4), inset 0 0 15px rgba(0, 255, 102, 0.15);
+        }
+        50% {
+          border-color: #00f0ff;
+          box-shadow: 0 0 60px rgba(0, 240, 255, 0.75), inset 0 0 30px rgba(0, 240, 255, 0.3);
+        }
+        100% {
+          border-color: #00ff66;
+          box-shadow: 0 0 35px rgba(0, 255, 102, 0.4), inset 0 0 15px rgba(0, 255, 102, 0.15);
+        }
+      }
+      @keyframes coordTextGlow {
+        0% {
+          opacity: 0.85;
+          text-shadow: 0 0 15px rgba(0, 255, 102, 0.7);
+        }
+        100% {
+          opacity: 1;
+          text-shadow: 0 0 30px rgba(0, 255, 102, 1), 0 0 50px rgba(0, 255, 102, 0.6);
+        }
+      }
     </style>
   </head>
   <body>
@@ -1016,6 +1102,14 @@
             </div>
           </div>
           <div id="hackerTimerSub">TIJD RESTEREND</div>
+        </div>
+      </div>
+      <!-- Gecentreerde Hacker GPS Coördinaten Overlay -->
+      <div id="hackerCoordinatesOverlay">
+        <div class="hacker-coord-box">
+          <div class="hacker-coord-label">📍 GPS COÖRDINATEN</div>
+          <div id="hackerCoordDisplay" class="hacker-coord-display">52.0391589, 6.3850740</div>
+          <div class="hacker-coord-sub">LOCATIE SIGNAAL VASTGESTELD</div>
         </div>
       </div>
       <!-- Fullscreen Hackerscherm Video Overlay (alleen te stoppen vanuit beheer of na afspelen) -->

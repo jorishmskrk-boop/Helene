@@ -980,6 +980,44 @@ app.post("/api/hacker-timer", (req, res) => {
   }
 });
 
+// Endpoints voor GPS Coördinaten Weergave
+interface CoordinatesState {
+  active: boolean;
+  text: string;
+}
+
+const coordinatesState: CoordinatesState = {
+  active: false,
+  text: "52.0391589, 6.3850740",
+};
+
+app.get("/api/coordinates", (req, res) => {
+  res.json({ status: "ok", coordinates: coordinatesState });
+});
+
+app.post("/api/coordinates", (req, res) => {
+  try {
+    const { action, text } = req.body || {};
+    if (action === "start") {
+      coordinatesState.active = true;
+      if (text && typeof text === "string" && text.trim().length > 0) {
+        coordinatesState.text = text.trim();
+      }
+      addLog("system", "📍 Coördinaten weergave gestart op scherm", coordinatesState.text);
+    } else if (action === "stop") {
+      coordinatesState.active = false;
+      addLog("system", "⏹️ Coördinaten weergave gestopt");
+    } else {
+      return res.status(400).json({ status: "error", message: "Ongeldige actie." });
+    }
+
+    const count = broadcastToDisplays({ type: "coordinates_update", coordinates: coordinatesState });
+    res.json({ status: "ok", count, coordinates: coordinatesState });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", message: err?.message || "Fout bij verwerken coördinaten commando." });
+  }
+});
+
 // Mededeling laten uitspreken door alle verbonden schermen
 app.post("/api/say", async (req, res) => {
   try {
@@ -1212,6 +1250,12 @@ app.post("/api/knowledge/restore", (req, res) => {
 wss.on("connection", (clientWs, request: any) => {
   console.log("[SERVER] Nieuwe client verbonden via WebSocket");
   displayClients.add(clientWs);
+
+  // Stuur actuele timer- en coördinaten-status naar het nieuw verbonden scherm
+  try {
+    clientWs.send(JSON.stringify({ type: "hacker_timer_update", timer: getHackerTimerState() }));
+    clientWs.send(JSON.stringify({ type: "coordinates_update", coordinates: coordinatesState }));
+  } catch (e) {}
 
   const host = request?.headers?.host || "localhost";
   const reqUrl = new URL(request?.url || "", `http://${host}`);
