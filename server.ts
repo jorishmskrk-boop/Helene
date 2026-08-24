@@ -635,22 +635,86 @@ function chunkTextForTTS(text: string): string[] {
   return chunks;
 }
 
-// Zet tekst om naar spraak en speel dit af op alle verbonden schermen.
+interface SpeechSegment {
+  type: "text" | "pause";
+  text?: string;
+  durationMs?: number;
+}
+
+// Splitst tekst op pauze-markeringen zoals [stilte: 2s], [pauze: 1.5], [stilte], <break time="2s"/>, etc.
+function parseTextWithPauses(text: string): SpeechSegment[] {
+  const segments: SpeechSegment[] = [];
+  const regex = /\[(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    const preText = text.substring(lastIndex, match.index).trim();
+    if (preText) {
+      segments.push({ type: "text", text: preText });
+    }
+
+    const durationStr = (match[1] || match[2] || "1s").toLowerCase();
+    let ms = 1000;
+    if (durationStr.endsWith("ms")) {
+      ms = parseFloat(durationStr.replace("ms", ""));
+    } else if (durationStr.endsWith("s")) {
+      ms = parseFloat(durationStr.replace("s", "")) * 1000;
+    } else {
+      const val = parseFloat(durationStr);
+      ms = isNaN(val) ? 1000 : val * 1000;
+    }
+
+    ms = Math.max(100, Math.min(10000, ms));
+    segments.push({ type: "pause", durationMs: ms });
+
+    lastIndex = regex.lastIndex;
+  }
+
+  const remaining = text.substring(lastIndex).trim();
+  if (remaining) {
+    segments.push({ type: "text", text: remaining });
+  }
+
+  if (segments.length === 0 && text.trim()) {
+    segments.push({ type: "text", text: text.trim() });
+  }
+
+  return segments;
+}
+
+// Zet tekst om naar spraak en speel dit af op alle verbonden schermen (inclusief stiltes/pauzes).
 async function speakToDisplays(text: string, forceSpooky: boolean = false): Promise<{ chunks: number; displays: number }> {
   const settings = getSettings();
-  const parts = chunkTextForTTS(text);
+  const segments = parseTextWithPauses(text);
   const isSpooky = forceSpooky || settings.spookyVoiceMode === true;
-  // Onderbreek eventuele lopende spraak en toon de mededeling als ondertitel
+
+  // Maak de ondertitel schoon van [stilte: ...] tags
+  const cleanSubtitleText = text.replace(/\[(?:stilte|pauze|pause)[^\]]*\]|<break[^>]*>/gi, "").trim();
+
   const displays = broadcastToDisplays({ type: "interrupted" });
-  broadcastToDisplays({ type: "subtitle", text });
-  for (const part of parts) {
-    const audioBase64 = await generateTTSAudio(part, settings, isSpooky);
-    if (audioBase64) {
-      broadcastToDisplays({ type: "audio", data: audioBase64, isSpooky });
+  broadcastToDisplays({ type: "subtitle", text: cleanSubtitleText });
+
+  let chunkCount = 0;
+
+  for (const seg of segments) {
+    if (seg.type === "text" && seg.text) {
+      const parts = chunkTextForTTS(seg.text);
+      for (const part of parts) {
+        const audioBase64 = await generateTTSAudio(part, settings, isSpooky);
+        if (audioBase64) {
+          broadcastToDisplays({ type: "audio", data: audioBase64, isSpooky });
+          chunkCount++;
+        }
+      }
+    } else if (seg.type === "pause" && seg.durationMs) {
+      await new Promise((resolve) => setTimeout(resolve, seg.durationMs));
     }
   }
+
   broadcastToDisplays({ type: "turn_complete" });
-  return { chunks: parts.length, displays };
+  return { chunks: chunkCount, displays };
 }
 
 // API Endpoint voor beheerders-authenticatie (Wachtwoord: Kamp2026!)

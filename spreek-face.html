@@ -197,6 +197,32 @@
   }
   renderMouth();
 
+  function parseTextWithPauses(text) {
+    const segments = [];
+    const regex = /\[(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+      const preText = text.substring(lastIndex, match.index).trim();
+      if (preText) segments.push({ type: "text", text: preText });
+
+      const durationStr = (match[1] || match[2] || "1s").toLowerCase();
+      let ms = 1000;
+      if (durationStr.endsWith("ms")) ms = parseFloat(durationStr.replace("ms", ""));
+      else if (durationStr.endsWith("s")) ms = parseFloat(durationStr.replace("s", "")) * 1000;
+      else ms = (parseFloat(durationStr) || 1) * 1000;
+
+      segments.push({ type: "pause", durationMs: Math.max(100, Math.min(10000, ms)) });
+      lastIndex = regex.lastIndex;
+    }
+
+    const remaining = text.substring(lastIndex).trim();
+    if (remaining) segments.push({ type: "text", text: remaining });
+    if (segments.length === 0 && text.trim()) segments.push({ type: "text", text: text.trim() });
+    return segments;
+  }
+
   async function playSpreekAudio() {
     if (isPlaying) return;
     isPlaying = true;
@@ -211,35 +237,41 @@
         outputAnalyser.smoothingTimeConstant = 0.8;
       }
 
-      const res = await fetch('/api/tts/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: spreekText })
-      });
+      const segments = parseTextWithPauses(spreekText);
 
-      const data = await res.json();
-      if (res.ok && data.audioBase64) {
-        const bin = atob(data.audioBase64);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      for (const seg of segments) {
+        if (seg.type === "text" && seg.text) {
+          const res = await fetch('/api/tts/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: seg.text })
+          });
 
-        const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
-        const src = audioCtx.createBufferSource();
-        src.buffer = audioBuffer;
+          const data = await res.json();
+          if (res.ok && data.audioBase64) {
+            const bin = atob(data.audioBase64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
-        src.connect(outputAnalyser);
-        outputAnalyser.connect(audioCtx.destination);
+            const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
+            const src = audioCtx.createBufferSource();
+            src.buffer = audioBuffer;
 
-        src.onended = function () {
-          isPlaying = false;
-        };
+            src.connect(outputAnalyser);
+            outputAnalyser.connect(audioCtx.destination);
 
-        src.start(0);
-      } else {
-        isPlaying = false;
+            await new Promise((resolve) => {
+              src.onended = resolve;
+              src.start(0);
+            });
+          }
+        } else if (seg.type === "pause" && seg.durationMs) {
+          await new Promise((resolve) => setTimeout(resolve, seg.durationMs));
+        }
       }
     } catch (e) {
       console.error('Fout bij afspelen spraak:', e);
+    } finally {
       isPlaying = false;
     }
   }

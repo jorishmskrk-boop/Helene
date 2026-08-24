@@ -531,20 +531,63 @@ function chunkTextForTTS(text) {
   if (current) chunks.push(current.trim());
   return chunks;
 }
+function parseTextWithPauses(text) {
+  const segments = [];
+  const regex = /\[(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const preText = text.substring(lastIndex, match.index).trim();
+    if (preText) {
+      segments.push({ type: "text", text: preText });
+    }
+    const durationStr = (match[1] || match[2] || "1s").toLowerCase();
+    let ms = 1e3;
+    if (durationStr.endsWith("ms")) {
+      ms = parseFloat(durationStr.replace("ms", ""));
+    } else if (durationStr.endsWith("s")) {
+      ms = parseFloat(durationStr.replace("s", "")) * 1e3;
+    } else {
+      const val = parseFloat(durationStr);
+      ms = isNaN(val) ? 1e3 : val * 1e3;
+    }
+    ms = Math.max(100, Math.min(1e4, ms));
+    segments.push({ type: "pause", durationMs: ms });
+    lastIndex = regex.lastIndex;
+  }
+  const remaining = text.substring(lastIndex).trim();
+  if (remaining) {
+    segments.push({ type: "text", text: remaining });
+  }
+  if (segments.length === 0 && text.trim()) {
+    segments.push({ type: "text", text: text.trim() });
+  }
+  return segments;
+}
 async function speakToDisplays(text, forceSpooky = false) {
   const settings = getSettings();
-  const parts = chunkTextForTTS(text);
+  const segments = parseTextWithPauses(text);
   const isSpooky = forceSpooky || settings.spookyVoiceMode === true;
+  const cleanSubtitleText = text.replace(/\[(?:stilte|pauze|pause)[^\]]*\]|<break[^>]*>/gi, "").trim();
   const displays = broadcastToDisplays({ type: "interrupted" });
-  broadcastToDisplays({ type: "subtitle", text });
-  for (const part of parts) {
-    const audioBase64 = await generateTTSAudio(part, settings, isSpooky);
-    if (audioBase64) {
-      broadcastToDisplays({ type: "audio", data: audioBase64, isSpooky });
+  broadcastToDisplays({ type: "subtitle", text: cleanSubtitleText });
+  let chunkCount = 0;
+  for (const seg of segments) {
+    if (seg.type === "text" && seg.text) {
+      const parts = chunkTextForTTS(seg.text);
+      for (const part of parts) {
+        const audioBase64 = await generateTTSAudio(part, settings, isSpooky);
+        if (audioBase64) {
+          broadcastToDisplays({ type: "audio", data: audioBase64, isSpooky });
+          chunkCount++;
+        }
+      }
+    } else if (seg.type === "pause" && seg.durationMs) {
+      await new Promise((resolve) => setTimeout(resolve, seg.durationMs));
     }
   }
   broadcastToDisplays({ type: "turn_complete" });
-  return { chunks: parts.length, displays };
+  return { chunks: chunkCount, displays };
 }
 app.post("/api/login", (req, res) => {
   const { password } = req.body || {};
