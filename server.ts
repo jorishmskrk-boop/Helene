@@ -240,8 +240,8 @@ async function generateTTSAudio(text: string, settings: any, isSpooky: boolean =
 
   const effectiveSettings = { ...settings };
 
-  // Als de griezelstem of spooky mode actief is (of ttsEngine === "elevenlabs"), stuur verplicht via ElevenLabs!
-  if (isSpooky || settings.spookyVoiceMode === true || effectiveSettings.ttsEngine === "elevenlabs") {
+  // Als isSpooky === true (of ttsEngine === "elevenlabs"), stuur via ElevenLabs griezelstem!
+  if (isSpooky || effectiveSettings.ttsEngine === "elevenlabs") {
     effectiveSettings.ttsEngine = "elevenlabs";
     if (settings.spookyVoiceName) {
       const spookyVoice = String(settings.spookyVoiceName).trim();
