@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Hélène Spraakbericht</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100vw; height: 100vh;
+    background: #06080e; color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 6vh 4vw 8vh 4vw;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Scout Ogen Styling */
+  #scoutEyesContainer {
+    position: relative;
+    display: flex; gap: 6vw;
+    align-items: center; justify-content: center;
+    margin-top: 8vh;
+    transition: transform 0.4s ease;
+  }
+
+  .eye-wrapper {
+    position: relative;
+    width: clamp(110px, 18vw, 220px);
+    height: clamp(130px, 21vw, 260px);
+  }
+
+  .scout-eye-svg {
+    width: 100%; height: 100%;
+    filter: drop-shadow(0 0 24px var(--accent-color, #38bdf8));
+    transition: filter 0.3s ease;
+  }
+
+  .scout-eye-svg .fleur-leaf, .scout-eye-svg .fleur-ring, .scout-eye-svg .fleur-base {
+    fill: var(--accent-color, #38bdf8);
+    transition: fill 0.3s ease;
+  }
+
+  .eyebrow-svg {
+    position: absolute; top: -20%; left: 0; width: 100%; height: 35%;
+    overflow: visible; transition: transform 0.3s ease;
+  }
+
+  /* Ogen spreek gloed */
+  #scoutEyesContainer.speaking .scout-eye-svg {
+    filter: drop-shadow(0 0 40px var(--accent-color, #38bdf8)) drop-shadow(0 0 25px #10b981);
+    animation: eyePulse 1.2s infinite ease-in-out alternate;
+  }
+  @keyframes eyePulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.07); }
+  }
+
+  /* Subtitels onderaan */
+  #bottomSection {
+    width: 100%; max-width: 850px;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+
+  #subtitles {
+    font-size: clamp(1.5rem, 2.8vw, 3rem);
+    font-weight: 600;
+    color: var(--accent-color, #38bdf8);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+    line-height: 1.35;
+    min-height: 3.5rem;
+    padding: 0 16px;
+  }
+
+  #tapHint {
+    font-size: 0.9rem;
+    color: #64748b;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Hélène Ogen -->
+  <div id="scoutEyesContainer">
+    <div class="eye-wrapper left-eye">
+      <svg class="eyebrow-svg left-eyebrow" viewBox="0 0 100 30">
+        <path d="M 10,24 Q 50,6 90,24" stroke="var(--accent-color, #38bdf8)" stroke-width="9" stroke-linecap="round" fill="none" />
+      </svg>
+      <svg class="scout-eye-svg" viewBox="0 0 100 120">
+        <path class="fleur-leaf" d="M 50,8 C 64,32 70,55 50,90 C 30,55 36,32 50,8 Z" />
+        <path class="fleur-leaf" d="M 44,64 C 18,48 4,58 8,76 C 13,90 36,80 44,70 Z" />
+        <path class="fleur-leaf" d="M 56,64 C 82,48 96,58 92,76 C 87,90 64,80 56,70 Z" />
+        <rect class="fleur-ring" x="30" y="70" width="40" height="9" rx="4.5" />
+        <path class="fleur-base" d="M 38,81 C 44,95 50,110 50,110 C 50,110 56,95 62,81 Z" />
+      </svg>
+    </div>
+    <div class="eye-wrapper right-eye">
+      <svg class="eyebrow-svg right-eyebrow" viewBox="0 0 100 30">
+        <path d="M 10,24 Q 50,6 90,24" stroke="var(--accent-color, #38bdf8)" stroke-width="9" stroke-linecap="round" fill="none" />
+      </svg>
+      <svg class="scout-eye-svg" viewBox="0 0 100 120">
+        <path class="fleur-leaf" d="M 50,8 C 64,32 70,55 50,90 C 30,55 36,32 50,8 Z" />
+        <path class="fleur-leaf" d="M 44,64 C 18,48 4,58 8,76 C 13,90 36,80 44,70 Z" />
+        <path class="fleur-leaf" d="M 56,64 C 82,48 96,58 92,76 C 87,90 64,80 56,70 Z" />
+        <rect class="fleur-ring" x="30" y="70" width="40" height="9" rx="4.5" />
+        <path class="fleur-base" d="M 38,81 C 44,95 50,110 50,110 C 50,110 56,95 62,81 Z" />
+      </svg>
+    </div>
+  </div>
+
+  <div id="bottomSection">
+    <div id="subtitles">…</div>
+    <div id="tapHint">👆 Tik op het scherm om opnieuw af te spelen</div>
+  </div>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const spreekText = window.SPREEK_TEXT || urlParams.get('tekst') || urlParams.get('text') || "Attentie voor deze mededeling.";
+  
+  const subtitlesEl = document.getElementById('subtitles');
+  const eyesContainer = document.getElementById('scoutEyesContainer');
+
+  subtitlesEl.textContent = 'Hélène: "' + spreekText + '"';
+
+  let audioCtx = null;
+  let isPlaying = false;
+
+  async function playSpreekAudio() {
+    if (isPlaying) return;
+    isPlaying = true;
+    eyesContainer.classList.add('speaking');
+
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      const res = await fetch('/api/tts/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: spreekText })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.audioBase64) {
+        const bin = atob(data.audioBase64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+        const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(audioCtx.destination);
+
+        src.onended = function () {
+          eyesContainer.classList.remove('speaking');
+          isPlaying = false;
+        };
+
+        src.start(0);
+      } else {
+        eyesContainer.classList.remove('speaking');
+        isPlaying = false;
+      }
+    } catch (e) {
+      console.error('Fout bij afspelen spraak:', e);
+      eyesContainer.classList.remove('speaking');
+      isPlaying = false;
+    }
+  }
+
+  document.addEventListener('click', playSpreekAudio);
+
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(playSpreekAudio, 400);
+  });
+</script>
+</body>
+</html>

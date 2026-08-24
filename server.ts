@@ -233,7 +233,7 @@ async function generateGeminiTTSAudio(text: string, settings: any): Promise<stri
 
 async function generateTTSAudio(text: string, settings: any, isSpooky: boolean = false): Promise<string | null> {
   const effectiveSettings = { ...settings };
-  if (isSpooky && settings.spookyVoiceMode === true && settings.spookyVoiceName) {
+  if ((isSpooky || settings.spookyVoiceMode === true) && settings.spookyVoiceName) {
     const spookyVoice = String(settings.spookyVoiceName).trim();
     effectiveSettings.voiceName = spookyVoice;
     if (spookyVoice.length > 12) {
@@ -634,16 +634,17 @@ function chunkTextForTTS(text: string): string[] {
 }
 
 // Zet tekst om naar spraak en speel dit af op alle verbonden schermen.
-async function speakToDisplays(text: string): Promise<{ chunks: number; displays: number }> {
+async function speakToDisplays(text: string, forceSpooky: boolean = false): Promise<{ chunks: number; displays: number }> {
   const settings = getSettings();
   const parts = chunkTextForTTS(text);
+  const isSpooky = forceSpooky || settings.spookyVoiceMode === true;
   // Onderbreek eventuele lopende spraak en toon de mededeling als ondertitel
   const displays = broadcastToDisplays({ type: "interrupted" });
   broadcastToDisplays({ type: "subtitle", text });
   for (const part of parts) {
-    const audioBase64 = await generateTTSAudio(part, settings);
+    const audioBase64 = await generateTTSAudio(part, settings, isSpooky);
     if (audioBase64) {
-      broadcastToDisplays({ type: "audio", data: audioBase64 });
+      broadcastToDisplays({ type: "audio", data: audioBase64, isSpooky });
     }
   }
   broadcastToDisplays({ type: "turn_complete" });
@@ -891,7 +892,15 @@ app.get("/foto.html", (req, res) => {
   res.sendFile(path.join(process.cwd(), "foto.html"));
 });
 
-// GET /spreek?tekst=... (Dynamische spraak-URL)
+// Helper: Serveer de Hélène gezichtspagina voor spreek URL's
+function renderSpreekFaceHtml(tekst: string): string {
+  const templatePath = path.join(process.cwd(), "spreek-face.html");
+  let html = fs.existsSync(templatePath) ? fs.readFileSync(templatePath, "utf-8") : "";
+  const injection = `<script>window.SPREEK_TEXT = ${JSON.stringify(tekst)};</script>`;
+  return html.replace("</head>", `${injection}\n</head>`);
+}
+
+// GET /spreek?tekst=... (Dynamische spraak-URL met Hélène gezicht)
 app.get("/spreek", async (req, res) => {
   const tekst = (req.query.tekst || req.query.text || "").toString().trim();
   if (!tekst) {
@@ -899,15 +908,15 @@ app.get("/spreek", async (req, res) => {
   }
 
   try {
-    const result = await speakToDisplays(tekst);
+    await speakToDisplays(tekst);
     addLog("system", "📢 Spraak gestart via URL /spreek", tekst);
-    res.send(`<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"/><title>Spreek | Hélène</title><style>body{font-family:sans-serif;padding:40px;background:#0f172a;color:#38bdf8;text-align:center;}.card{background:#1e293b;padding:32px;border-radius:16px;max-width:520px;margin:40px auto;border:1px solid #334155;box-shadow:0 10px 30px rgba(0,0,0,0.5);}h1{margin-top:0;color:#f8fafc;font-size:1.5rem;}.msg{font-size:1.2rem;color:#e2e8f0;margin:20px 0;background:#0f172a;padding:16px;border-radius:10px;border:1px solid #475569;}.sub{color:#94a3b8;font-size:0.88rem;}</style></head><body><div class="card"><h1>📢 Spraakbericht Verzonden!</h1><div class="msg">"${tekst}"</div><p class="sub">Het bericht wordt nu uitgesproken op de verbonden kampschermen.</p></div></body></html>`);
+    res.send(renderSpreekFaceHtml(tekst));
   } catch (err: any) {
     res.status(500).send(`Fout bij uitspreken: ${err?.message || String(err)}`);
   }
 });
 
-// GET /spreek/:id (Preset spraak-URL)
+// GET /spreek/:id (Preset spraak-URL met Hélène gezicht)
 app.get("/spreek/:id", async (req, res) => {
   const presetId = req.params.id;
   const settings = getSettings();
@@ -921,7 +930,7 @@ app.get("/spreek/:id", async (req, res) => {
   try {
     await speakToDisplays(preset.text);
     addLog("system", `📢 Preset '${preset.name}' uitgesproken via URL /spreek/${preset.id}`, preset.text);
-    res.send(`<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"/><title>Spreek | Hélène</title><style>body{font-family:sans-serif;padding:40px;background:#0f172a;color:#38bdf8;text-align:center;}.card{background:#1e293b;padding:32px;border-radius:16px;max-width:520px;margin:40px auto;border:1px solid #334155;box-shadow:0 10px 30px rgba(0,0,0,0.5);}h1{margin-top:0;color:#f8fafc;font-size:1.5rem;}.msg{font-size:1.2rem;color:#e2e8f0;margin:20px 0;background:#0f172a;padding:16px;border-radius:10px;border:1px solid #475569;}.sub{color:#94a3b8;font-size:0.88rem;}</style></head><body><div class="card"><h1>📢 Preset Afgespeeld: ${preset.name}</h1><div class="msg">"${preset.text}"</div><p class="sub">Afgespeeld op de kampschermen.</p></div></body></html>`);
+    res.send(renderSpreekFaceHtml(preset.text));
   } catch (err: any) {
     res.status(500).send(`Fout bij uitspreken preset: ${err?.message || String(err)}`);
   }
