@@ -255,15 +255,15 @@
 
             const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
 
-            // 1. Haarscherpe, helder verstaanbare hoofdstem
+            // 1. Haarscherpe, helder verstaanbare hoofdstem (tikkeltje sneller)
             const src = audioCtx.createBufferSource();
             src.buffer = audioBuffer;
-            src.playbackRate.value = 0.94;
+            src.playbackRate.value = 0.98;
 
-            // 2. Subtiele schaduwstem (niet overheersend)
+            // 2. Subtiele schaduwstem
             const subSrc = audioCtx.createBufferSource();
             subSrc.buffer = audioBuffer;
-            subSrc.playbackRate.value = 0.78;
+            subSrc.playbackRate.value = 0.88;
 
             const subGain = audioCtx.createGain();
             subGain.gain.value = 0.12; // Zeer licht volume zodat de stem 100% helder blijft

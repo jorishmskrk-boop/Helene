@@ -846,13 +846,13 @@ async function playAudioChunk(base64Data) {
     let subSource = null;
 
     if (isCurrentTurnSpooky) {
-      // 1. Haarscherpe, helder verstaanbare hoofdstem
-      source.playbackRate.value = 0.94;
+      // 1. Haarscherpe, helder verstaanbare hoofdstem (tikkeltje sneller)
+      source.playbackRate.value = 0.98;
 
-      // 2. Subtiele achtergrond schaduwstem (niet overheersend)
+      // 2. Subtiele achtergrond schaduwstem
       subSource = outputAudioCtx.createBufferSource();
       subSource.buffer = buffer;
-      subSource.playbackRate.value = 0.78;
+      subSource.playbackRate.value = 0.88;
 
       const subGain = outputAudioCtx.createGain();
       subGain.gain.value = 0.12; // Zeer licht volume zodat de stem 100% helder blijft
