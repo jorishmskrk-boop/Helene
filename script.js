@@ -1208,62 +1208,48 @@ function playScanTone(type) {
 
 function handlePhotoScanned(msg) {
   const overlay = document.getElementById("photoScanOverlay");
-  const modal = document.getElementById("scannerModal");
-  const groupNameEl = document.getElementById("scanGroupName");
   const scanImg = document.getElementById("scanImage");
-  const laserBeam = document.getElementById("laserBeam");
-  const stamp = document.getElementById("verdictStamp");
-  const verdictIcon = document.getElementById("verdictIcon");
-  const verdictText = document.getElementById("verdictText");
-  const statusLine = document.getElementById("scanStatusLine");
+  const scanBeam = document.getElementById("scanBeam");
+  const symbol = document.getElementById("scanVerdictSymbol");
 
-  if (!overlay || !scanImg) return;
+  if (!overlay || !scanImg || !scanBeam) return;
 
-  // Reset modal state
-  modal.className = "scanner-modal";
-  stamp.classList.remove("active");
-  laserBeam.classList.remove("scanning");
+  // Reset classes
+  overlay.className = "";
+  scanBeam.classList.remove("scanning");
+  if (symbol) symbol.textContent = "";
 
-  groupNameEl.textContent = `GROEPSNAAM: ${(msg.groupName || "ONBEKEND").toUpperCase()}`;
   scanImg.src = msg.imageData;
-  statusLine.textContent = "⚡ FOTO ANALYSEREN...";
 
-  // 1. Toon overlay
+  // 1. Toon het foto-scherm in te vullen beeld
   overlay.classList.add("active");
   playScanTone("scan_start");
 
-  // 2. Start laser sweep
+  // 2. Start de realistische scan lichtbalk
   setTimeout(() => {
-    laserBeam.classList.add("scanning");
-  }, 300);
+    scanBeam.classList.add("scanning");
+  }, 200);
 
-  // 3. Toon verdict na 2.4 seconden
+  // 3. Oordeel uitslag na de scan sweep
   setTimeout(() => {
-    laserBeam.classList.remove("scanning");
+    scanBeam.classList.remove("scanning");
 
     if (msg.status === "approved") {
-      modal.classList.add("approved");
-      verdictIcon.textContent = "✅";
-      verdictText.textContent = "GOEDGEKEURD";
-      statusLine.textContent = "✅ RESULTAAT: GOEDGEKEURD";
+      overlay.classList.add("approved");
+      if (symbol) symbol.textContent = "✓";
       playScanTone("approved");
     } else {
-      modal.classList.add("rejected");
-      verdictIcon.textContent = "❌";
-      verdictText.textContent = "AFGEKEURD";
-      statusLine.textContent = "❌ RESULTAAT: AFGEKEURD";
+      overlay.classList.add("rejected");
+      if (symbol) symbol.textContent = "✕";
       playScanTone("rejected");
     }
-
-    stamp.classList.add("active");
   }, 2400);
 
-  // 4. Verberg overlay na 6.8 seconden
+  // 4. Sluit fullscreen scan en keur naar normaal na 5.5 seconden
   setTimeout(() => {
     overlay.classList.remove("active");
     setTimeout(() => {
-      modal.className = "scanner-modal";
-      stamp.classList.remove("active");
-    }, 600);
-  }, 6800);
+      overlay.className = "";
+    }, 500);
+  }, 5500);
 }

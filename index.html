@@ -674,206 +674,143 @@
         max-width: 80vw;
       }
 
-      /* Futuristic Sci-Fi Scanner Overlay */
+      /* Fullscreen Realistic Photo Scanner Overlay */
       #photoScanOverlay {
         position: fixed;
         inset: 0;
         z-index: 9999;
-        background: rgba(6, 8, 14, 0.94);
-        backdrop-filter: blur(16px);
+        background: #000;
         display: none;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
         opacity: 0;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.4s ease;
       }
       #photoScanOverlay.active {
         display: flex;
         opacity: 1;
       }
 
-      .scanner-modal {
-        position: relative;
-        width: 90vw;
-        max-width: 650px;
-        background: #0f172a;
-        border: 2px solid #38bdf8;
-        border-radius: 24px;
-        padding: 28px 24px;
-        box-shadow: 0 0 50px rgba(56, 189, 248, 0.35), inset 0 0 30px rgba(56, 189, 248, 0.1);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        transition: border-color 0.4s, box-shadow 0.4s;
-      }
-
-      .hud-corner {
-        position: absolute;
-        width: 24px;
-        height: 24px;
-        border-color: #38bdf8;
-        border-style: solid;
-      }
-      .hud-corner.top-left { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 24px; }
-      .hud-corner.top-right { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 24px; }
-      .hud-corner.bottom-left { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 24px; }
-      .hud-corner.bottom-right { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 24px; }
-
-      .hud-header {
-        margin-bottom: 20px;
-        width: 100%;
-      }
-      .hud-tag {
-        font-size: 0.8rem;
-        letter-spacing: 0.25em;
-        color: #38bdf8;
-        font-weight: 800;
-        text-transform: uppercase;
-        margin-bottom: 6px;
-      }
-      .hud-group {
-        font-size: clamp(1.4rem, 2.8vw, 2.2rem);
-        font-weight: 900;
-        color: #f8fafc;
-        text-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
-      }
-
-      .scan-frame {
-        position: relative;
-        width: 100%;
-        max-height: 400px;
-        height: 50vh;
-        background: #000;
-        border: 2px solid #334155;
-        border-radius: 16px;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-      }
-
-      .scan-frame img {
-        width: 100%;
-        height: 100%;
+      #scanImage {
+        width: 100vw;
+        height: 100vh;
         object-fit: contain;
         display: block;
+        background: #000;
       }
 
-      .scan-grid-overlay {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(rgba(56,189,248,0.08) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(56,189,248,0.08) 1px, transparent 1px);
-        background-size: 24px 24px;
-        pointer-events: none;
-      }
-
-      .laser-beam {
+      /* Realistic Scan Beam */
+      #scanBeam {
         position: absolute;
         left: 0;
         right: 0;
-        top: 0;
-        height: 5px;
-        background: #38bdf8;
-        box-shadow: 0 0 15px #38bdf8, 0 0 30px #38bdf8;
+        top: -20vh;
+        height: 180px;
+        background: linear-gradient(
+          to bottom,
+          transparent 0%,
+          rgba(56, 189, 248, 0.05) 30%,
+          rgba(56, 189, 248, 0.35) 85%,
+          #38bdf8 98%,
+          #ffffff 100%
+        );
+        box-shadow: 0 4px 30px rgba(56, 189, 248, 0.8), 0 0 60px rgba(56, 189, 248, 0.5);
+        pointer-events: none;
         opacity: 0;
       }
-      .laser-beam.scanning {
+
+      #scanBeam.scanning {
         opacity: 1;
-        animation: laserScan 2.2s ease-in-out infinite;
+        animation: fullScanSweep 2.4s ease-in-out infinite;
       }
 
-      @keyframes laserScan {
-        0% { top: 0%; }
-        50% { top: 96%; }
-        100% { top: 0%; }
+      @keyframes fullScanSweep {
+        0% { top: -20vh; }
+        50% { top: 105vh; }
+        100% { top: -20vh; }
       }
 
-      /* Verdict Stamp */
-      .verdict-stamp {
+      /* Approved State for Scan Beam */
+      #photoScanOverlay.approved #scanBeam {
+        background: linear-gradient(
+          to bottom,
+          transparent 0%,
+          rgba(16, 185, 129, 0.05) 30%,
+          rgba(16, 185, 129, 0.4) 85%,
+          #10b981 98%,
+          #ffffff 100%
+        );
+        box-shadow: 0 4px 30px rgba(16, 185, 129, 0.9), 0 0 60px rgba(16, 185, 129, 0.6);
+      }
+
+      /* Rejected State for Scan Beam */
+      #photoScanOverlay.rejected #scanBeam {
+        background: linear-gradient(
+          to bottom,
+          transparent 0%,
+          rgba(239, 68, 68, 0.05) 30%,
+          rgba(239, 68, 68, 0.4) 85%,
+          #ef4444 98%,
+          #ffffff 100%
+        );
+        box-shadow: 0 4px 30px rgba(239, 68, 68, 0.9), 0 0 60px rgba(239, 68, 68, 0.6);
+      }
+
+      /* Sleek Overlay Flash & Symbol */
+      #scanVerdictFlash {
         position: absolute;
         inset: 0;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: rgba(15, 23, 42, 0.85);
-        backdrop-filter: blur(4px);
-        opacity: 0;
-        transform: scale(1.6);
-        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease;
         pointer-events: none;
-      }
-      .verdict-stamp.active {
-        opacity: 1;
-        transform: scale(1);
+        opacity: 0;
+        transition: opacity 0.5s ease;
       }
 
-      .verdict-icon {
-        font-size: clamp(3.5rem, 7vw, 5.5rem);
-        line-height: 1;
-        margin-bottom: 12px;
-      }
-      .verdict-text {
-        font-size: clamp(1.8rem, 3.5vw, 3rem);
+      #scanVerdictSymbol {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 80px;
         font-weight: 900;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        padding: 10px 28px;
-        border-radius: 14px;
-        border: 4px solid currentColor;
-        box-shadow: 0 0 30px currentColor;
+        transform: scale(1.5);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
 
-      /* Approved State */
-      .scanner-modal.approved {
-        border-color: #34d399;
-        box-shadow: 0 0 60px rgba(52, 211, 153, 0.5);
+      #photoScanOverlay.approved #scanVerdictFlash {
+        opacity: 1;
+        background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
       }
-      .scanner-modal.approved .laser-beam {
-        background: #34d399;
-        box-shadow: 0 0 20px #34d399;
-      }
-      .scanner-modal.approved .verdict-text {
-        color: #34d399;
-        border-color: #34d399;
-        background: rgba(52, 211, 153, 0.15);
+      #photoScanOverlay.approved #scanVerdictSymbol {
+        transform: scale(1);
+        color: #10b981;
+        border: 4px solid #10b981;
+        background: rgba(16, 185, 129, 0.15);
+        box-shadow: 0 0 50px rgba(16, 185, 129, 0.6), inset 0 0 20px rgba(16, 185, 129, 0.4);
       }
 
-      /* Rejected State */
-      .scanner-modal.rejected {
-        border-color: #f87171;
-        box-shadow: 0 0 60px rgba(248, 113, 113, 0.5);
-        animation: glitchShake 0.4s ease-in-out;
+      #photoScanOverlay.rejected #scanVerdictFlash {
+        opacity: 1;
+        background: radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, transparent 70%);
+        animation: glitchPulse 0.3s ease-in-out;
       }
-      .scanner-modal.rejected .laser-beam {
-        background: #f87171;
-        box-shadow: 0 0 20px #f87171;
-      }
-      .scanner-modal.rejected .verdict-text {
-        color: #f87171;
-        border-color: #f87171;
-        background: rgba(248, 113, 113, 0.15);
+      #photoScanOverlay.rejected #scanVerdictSymbol {
+        transform: scale(1);
+        color: #ef4444;
+        border: 4px solid #ef4444;
+        background: rgba(239, 68, 68, 0.15);
+        box-shadow: 0 0 50px rgba(239, 68, 68, 0.6), inset 0 0 20px rgba(239, 68, 68, 0.4);
       }
 
-      @keyframes glitchShake {
-        0%, 100% { transform: translate(0, 0); }
-        20% { transform: translate(-8px, 5px); }
-        40% { transform: translate(8px, -5px); }
-        60% { transform: translate(-5px, -3px); }
-        80% { transform: translate(5px, 3px); }
-      }
-
-      .hud-footer {
-        margin-top: 18px;
-      }
-      .scan-status-line {
-        font-size: 1.1rem;
-        font-weight: 800;
-        letter-spacing: 0.1em;
-        color: #38bdf8;
+      @keyframes glitchPulse {
+        0%, 100% { transform: scale(1); }
+        20% { transform: scale(1.08) translate(-5px, 3px); }
+        50% { transform: scale(0.95) translate(5px, -3px); }
       }
     </style>
   </head>
@@ -958,33 +895,12 @@
       <div id="errorBanner"></div>
     </div>
 
-    <!-- Futuristic Sci-Fi Photo Scanner Overlay -->
+    <!-- Fullscreen Realistic Photo Scanner Overlay -->
     <div id="photoScanOverlay">
-      <div class="scanner-modal" id="scannerModal">
-        <div class="hud-corner top-left"></div>
-        <div class="hud-corner top-right"></div>
-        <div class="hud-corner bottom-left"></div>
-        <div class="hud-corner bottom-right"></div>
-        
-        <div class="hud-header">
-          <div class="hud-tag">BIOMETRISCHE KAMP-SCANNER v2.5</div>
-          <div class="hud-group" id="scanGroupName">GROEPSNAAM: DE VERKENNERS</div>
-        </div>
-
-        <div class="scan-frame" id="scanFrame">
-          <img id="scanImage" src="" alt="Scan Target" />
-          <div class="laser-beam" id="laserBeam"></div>
-          <div class="scan-grid-overlay"></div>
-          
-          <div class="verdict-stamp" id="verdictStamp">
-            <span class="verdict-icon" id="verdictIcon"></span>
-            <span class="verdict-text" id="verdictText"></span>
-          </div>
-        </div>
-
-        <div class="hud-footer">
-          <div class="scan-status-line" id="scanStatusLine">⚡ FOTO ANALYSEREN...</div>
-        </div>
+      <img id="scanImage" src="" alt="Scan Target" />
+      <div id="scanBeam"></div>
+      <div id="scanVerdictFlash">
+        <div id="scanVerdictSymbol"></div>
       </div>
     </div>
 
