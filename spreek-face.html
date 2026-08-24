@@ -3,131 +3,91 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>SYSTEM OVERRIDE // Hélène Spraak</title>
+<title>Hélène</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     width: 100vw; height: 100vh;
-    background: #000000; color: #00ff66;
-    font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Courier New", monospace;
+    background: #000000;
     overflow: hidden;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-    padding: 5vh 4vw 6vh 4vw;
     cursor: pointer;
     user-select: none;
-    background-image: radial-gradient(rgba(0, 255, 102, 0.12) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
-  .term-top {
-    width: 100%; max-width: 850px;
-    border-bottom: 1px dashed #00ff66;
-    padding-bottom: 12px;
-    font-size: 0.85rem;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-
-  .term-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: 0.08em;
-  }
-
-  /* Cyber Fleur-de-Lis Ogen Styling */
-  #scoutEyesContainer {
     position: relative;
-    display: flex; gap: 6vw;
-    align-items: center; justify-content: center;
-    margin-top: 4vh;
-    transition: transform 0.4s ease;
+  }
+
+  /* Scout Ogen Styling (Precies hetzelfde als op het kampscherm in Hackerstand) */
+  #scoutEyesContainer {
+    position: absolute;
+    top: 24vh;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 80px;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    animation: hackerGlitch 0.4s infinite ease-in-out alternate;
+  }
+
+  @keyframes hackerGlitch {
+    0% { transform: translateX(-50%) translateY(0) scale(1.02); }
+    25% { transform: translateX(-49%) translateY(-2px) scale(1.04); }
+    50% { transform: translateX(-51%) translateY(2px) scale(0.99); }
+    75% { transform: translateX(-50%) translateY(-1px) scale(1.03); }
+    100% { transform: translateX(-50%) translateY(0) scale(1.02); }
   }
 
   .eye-wrapper {
     position: relative;
-    width: clamp(110px, 18vw, 220px);
-    height: clamp(130px, 21vw, 260px);
+    width: clamp(100px, 15vw, 190px);
+    height: clamp(120px, 18vw, 230px);
   }
 
   .scout-eye-svg {
     width: 100%; height: 100%;
-    filter: drop-shadow(0 0 25px #00ff66) drop-shadow(0 0 45px rgba(0, 240, 255, 0.5));
-    transition: filter 0.3s ease;
+    filter: drop-shadow(0 0 35px #00ff66) drop-shadow(0 0 25px #00f0ff) !important;
+    transform: scale(1.15);
   }
 
-  .scout-eye-svg .fleur-leaf {
-    fill: #00ff66;
-    transition: fill 0.3s ease;
-  }
-  .scout-eye-svg .fleur-ring, .scout-eye-svg .fleur-base {
-    fill: #00f0ff;
-    transition: fill 0.3s ease;
-  }
+  .scout-eye-svg .fleur-leaf { fill: #00ff66 !important; }
+  .scout-eye-svg .fleur-ring, .scout-eye-svg .fleur-base { fill: #00f0ff !important; }
 
   .eyebrow-svg {
     position: absolute; top: -20%; left: 0; width: 100%; height: 35%;
-    overflow: visible; transition: transform 0.3s ease;
+    overflow: visible;
   }
 
-  /* Cyber Ogen spreek gloed */
-  #scoutEyesContainer.speaking .scout-eye-svg {
-    filter: drop-shadow(0 0 45px #00ff66) drop-shadow(0 0 35px #00f0ff);
-    animation: eyePulse 1.1s infinite ease-in-out alternate;
+  .left-eyebrow {
+    transform: translateY(-24px) rotate(-26deg) scale(1.25);
+    filter: drop-shadow(0 0 25px #00f0ff) !important;
+    stroke: #00f0ff !important;
   }
-  @keyframes eyePulse {
-    0% { transform: scale(1); }
-    100% { transform: scale(1.08); }
-  }
-
-  /* Subtitels en Console Output onderaan */
-  #bottomSection {
-    width: 100%; max-width: 850px;
-    background: #050b07;
-    border: 1px solid #00ff66;
-    border-radius: 8px;
-    padding: 20px 24px;
-    box-shadow: 0 0 30px rgba(0, 255, 102, 0.2), inset 0 0 15px rgba(0, 255, 102, 0.05);
-    text-align: left;
-    display: flex; flex-direction: column; gap: 10px;
+  .right-eyebrow {
+    transform: translateY(-16px) rotate(22deg) scale(1.25);
+    filter: drop-shadow(0 0 25px #00f0ff) !important;
+    stroke: #00f0ff !important;
   }
 
-  .sub-tag {
-    font-size: 0.78rem;
-    color: #00f0ff;
-    letter-spacing: 0.08em;
-    font-weight: 700;
+  /* Het gecentreerde Canvas voor de exacte mond-golfvorm */
+  #canvasContainer {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
   }
 
-  #subtitles {
-    font-size: clamp(1.3rem, 2.4vw, 2.4rem);
-    font-weight: 700;
-    color: #ffffff;
-    line-height: 1.35;
-    text-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
-    min-height: 2.8rem;
-  }
-
-  #tapHint {
-    font-size: 0.8rem;
-    color: #00ff66;
-    opacity: 0.85;
-    letter-spacing: 0.05em;
-    margin-top: 4px;
-    border-top: 1px dashed rgba(0, 255, 102, 0.3);
-    padding-top: 8px;
+  #waveformCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 </style>
 </head>
 <body>
 
-  <div class="term-top">
-    <div class="term-title">> SYSTEM OVERRIDE // BROADCAST_STATION.EXE</div>
-    <div>ENGINE: ELEVENLABS_SPOOKY_VOICE</div>
-  </div>
-
-  <!-- Cyber Fleur-de-Lis Ogen -->
-  <div id="scoutEyesContainer">
-    <div class="eye-wrapper left-eye">
+  <!-- Franse Lelie Ogen (Hackerstand) -->
+  <div id="scoutEyesContainer" class="spooky">
+    <div class="eye-wrapper left-eye spooky">
       <svg class="eyebrow-svg left-eyebrow" viewBox="0 0 100 30">
         <path d="M 10,24 Q 50,6 90,24" stroke="#00f0ff" stroke-width="9" stroke-linecap="round" fill="none" />
       </svg>
@@ -139,7 +99,7 @@
         <path class="fleur-base" d="M 38,81 C 44,95 50,110 50,110 C 50,110 56,95 62,81 Z" />
       </svg>
     </div>
-    <div class="eye-wrapper right-eye">
+    <div class="eye-wrapper right-eye spooky">
       <svg class="eyebrow-svg right-eyebrow" viewBox="0 0 100 30">
         <path d="M 10,24 Q 50,6 90,24" stroke="#00f0ff" stroke-width="9" stroke-linecap="round" fill="none" />
       </svg>
@@ -153,32 +113,103 @@
     </div>
   </div>
 
-  <div id="bottomSection">
-    <div class="sub-tag">> INKOMEND SPRAAKBERICHT:</div>
-    <div id="subtitles">…</div>
-    <div id="tapHint">> STATUS: TRANSMITTING AUDIO... [ 👆 TIK OP HET SCHERM OM OPNIEUW AF TE SPELEN ]</div>
+  <!-- Mond Canvas -->
+  <div id="canvasContainer">
+    <canvas id="waveformCanvas"></canvas>
   </div>
 
 <script>
   const urlParams = new URLSearchParams(window.location.search);
   const spreekText = window.SPREEK_TEXT || urlParams.get('tekst') || urlParams.get('text') || "Attentie voor deze mededeling.";
-  
-  const subtitlesEl = document.getElementById('subtitles');
-  const eyesContainer = document.getElementById('scoutEyesContainer');
 
-  subtitlesEl.textContent = '"' + spreekText + '"';
+  const canvas = document.getElementById('waveformCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
 
   let audioCtx = null;
+  let outputAnalyser = null;
+  let freqData = new Uint8Array(64);
   let isPlaying = false;
+  let smoothedVolume = 0;
+  let wavePhase = 0;
+
+  function renderMouth() {
+    requestAnimationFrame(renderMouth);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let rawVolume = 0;
+    if (isPlaying && outputAnalyser) {
+      outputAnalyser.getByteFrequencyData(freqData);
+      let sum = 0;
+      for (let i = 0; i < 64; i++) sum += freqData[i];
+      rawVolume = sum / (64 * 255);
+    }
+    smoothedVolume += (rawVolume - smoothedVolume) * 0.18;
+
+    wavePhase += 0.08 + smoothedVolume * 0.25;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const centerY = height * 0.58;
+
+    ctx.lineWidth = 4 + smoothedVolume * 8;
+    ctx.strokeStyle = "#00ff66";
+    ctx.shadowBlur = 15 + smoothedVolume * 25;
+    ctx.shadowColor = "#00ff66";
+
+    const pointsCount = 120;
+    const step = width / (pointsCount - 1);
+    const points = [];
+
+    for (let i = 0; i < pointsCount; i++) {
+      const x = i * step;
+      const normX = i / (pointsCount - 1);
+      const envelope = Math.sin(normX * Math.PI);
+
+      let y = centerY;
+      if (smoothedVolume > 0.005) {
+        const dynamicAmp = Math.min(smoothedVolume * (height * 0.16), height * 0.09);
+        const wave1 = Math.sin(normX * Math.PI * 3 + wavePhase) * dynamicAmp;
+        const wave2 = Math.sin(normX * Math.PI * 6 - wavePhase * 1.5) * (dynamicAmp * 0.3);
+        y = centerY + (wave1 + wave2) * envelope;
+      } else {
+        const idleWave = Math.sin(normX * Math.PI * 2 + wavePhase) * 3;
+        y = centerY + idleWave * envelope;
+      }
+      points.push({ x, y });
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2;
+      const yc = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+    }
+    ctx.stroke();
+  }
+  renderMouth();
 
   async function playSpreekAudio() {
     if (isPlaying) return;
     isPlaying = true;
-    eyesContainer.classList.add('speaking');
 
     try {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      if (!outputAnalyser) {
+        outputAnalyser = audioCtx.createAnalyser();
+        outputAnalyser.fftSize = 512;
+        outputAnalyser.smoothingTimeConstant = 0.8;
+      }
 
       const res = await fetch('/api/tts/test', {
         method: 'POST',
@@ -195,29 +226,29 @@
         const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
         const src = audioCtx.createBufferSource();
         src.buffer = audioBuffer;
-        src.connect(audioCtx.destination);
+
+        src.connect(outputAnalyser);
+        outputAnalyser.connect(audioCtx.destination);
 
         src.onended = function () {
-          eyesContainer.classList.remove('speaking');
           isPlaying = false;
         };
 
         src.start(0);
       } else {
-        eyesContainer.classList.remove('speaking');
         isPlaying = false;
       }
     } catch (e) {
       console.error('Fout bij afspelen spraak:', e);
-      eyesContainer.classList.remove('speaking');
       isPlaying = false;
     }
   }
 
   document.addEventListener('click', playSpreekAudio);
+  document.addEventListener('touchstart', playSpreekAudio);
 
   window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(playSpreekAudio, 400);
+    setTimeout(playSpreekAudio, 300);
   });
 </script>
 </body>

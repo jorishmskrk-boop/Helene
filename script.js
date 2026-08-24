@@ -231,11 +231,14 @@ function setEyesState(state) {
 
   if (!eyeWrappers || eyeWrappers.length === 0) return;
 
-  container?.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "surprised", "sad", "curious");
+  container?.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "surprised", "sad", "curious", "spooky");
   eyeWrappers.forEach((eye) => {
-    eye.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "blink", "surprised", "sad", "curious");
+    eye.classList.remove("listening", "thinking", "happy", "puzzled", "speaking", "sleeping", "blink", "surprised", "sad", "curious", "spooky");
 
-    if (state === "SLEEPING") {
+    if (isCurrentTurnSpooky || state === "SPOOKY") {
+      container?.classList.add("spooky");
+      eye.classList.add("spooky", "speaking");
+    } else if (state === "SLEEPING") {
       eye.classList.add("sleeping");
     } else if (state === "LISTENING") {
       container?.classList.add("listening");

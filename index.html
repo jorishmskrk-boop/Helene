@@ -530,23 +530,37 @@
         filter: drop-shadow(0 0 12px var(--accent-color, #38bdf8)) opacity(0.85);
       }
 
-      /* EMOTIESTAND: Spooky / Satanisch — bloedrode ooggloed, gehoekte wenkbrauwen */
+      /* EMOTIESTAND: Spooky / Hacker — Gifgroene & Cyaan ooggloed, gehoekte cyber wenkbrauwen & glitch shake */
       #scoutEyesContainer.spooky {
-        transform: translateX(-50%) rotate(-4deg);
+        animation: hackerGlitch 0.4s infinite ease-in-out alternate;
+      }
+      @keyframes hackerGlitch {
+        0% { transform: translateX(-50%) translateY(0) scale(1.02); }
+        25% { transform: translateX(-49%) translateY(-2px) scale(1.04); }
+        50% { transform: translateX(-51%) translateY(2px) scale(0.99); }
+        75% { transform: translateX(-50%) translateY(-1px) scale(1.03); }
+        100% { transform: translateX(-50%) translateY(0) scale(1.02); }
       }
       .eye-wrapper.spooky .scout-eye-svg {
-        filter: drop-shadow(0 0 38px #dc2626) drop-shadow(0 0 20px #7f1d1d) !important;
+        filter: drop-shadow(0 0 35px #00ff66) drop-shadow(0 0 25px #00f0ff) !important;
         transform: scale(1.15);
+      }
+      .eye-wrapper.spooky .scout-eye-svg .fleur-leaf {
+        fill: #00ff66 !important;
+      }
+      .eye-wrapper.spooky .scout-eye-svg .fleur-ring,
+      .eye-wrapper.spooky .scout-eye-svg .fleur-base {
+        fill: #00f0ff !important;
       }
       .eye-wrapper.spooky .left-eyebrow {
         transform: translateY(-24px) rotate(-26deg) scale(1.25);
-        filter: drop-shadow(0 0 25px #ef4444) !important;
-        fill: #ef4444 !important;
+        filter: drop-shadow(0 0 25px #00f0ff) !important;
+        stroke: #00f0ff !important;
       }
       .eye-wrapper.spooky .right-eyebrow {
         transform: translateY(-16px) rotate(22deg) scale(1.25);
-        filter: drop-shadow(0 0 25px #ef4444) !important;
-        fill: #ef4444 !important;
+        filter: drop-shadow(0 0 25px #00f0ff) !important;
+        stroke: #00f0ff !important;
       }
 
       /* EMOTIESTAND: Nieuwsgierig — asymmetrische wenkbrauwen + hoofd kantelt */
