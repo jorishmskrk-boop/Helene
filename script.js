@@ -683,7 +683,6 @@ function updateHackerTimerUI(timerState) {
         clearInterval(hackerTimerInterval);
         hackerTimerInterval = null;
       }
-      playHackerTimerAlarmSound();
     } else if (timerState.paused) {
       overlay.classList.remove("finished");
       overlay.classList.add("paused");

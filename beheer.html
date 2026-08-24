@@ -1197,7 +1197,7 @@
             <span class="mono" style="font-size:0.75rem;background:var(--surface);padding:2px 8px;border-radius:6px;border:1px solid var(--border-strong);color:var(--accent);margin-left:8px;">/spreek/${esc(p.id)}</span>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn ghost btn-test-preset" data-id="${esc(p.id)}" style="padding:5px 10px;font-size:0.8rem;" title="Test afspelen op kampscherm">▶️ Test</button>
+            <button class="btn ghost btn-test-preset" data-id="${esc(p.id)}" style="padding:5px 10px;font-size:0.8rem;" title="Test afspelen op hoofdscherm">▶️ Test op Hoofdscherm</button>
             <button class="btn btn-copy-preset" data-url="${esc(fullUrl)}" style="padding:5px 10px;font-size:0.8rem;">📋 Kopieer URL</button>
             <button class="btn ghost btn-qr-preset" data-url="${esc(fullUrl)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;">📱 QR Code</button>
             <button class="btn ghost btn-del-preset" data-idx="${idx}" style="padding:5px 8px;font-size:0.8rem;color:var(--crit);border-color:var(--crit);" title="Verwijderen">🗑️</button>
@@ -1211,9 +1211,23 @@
     list.querySelectorAll('.btn-test-preset').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
-        const res = await api(`/spreek/${encodeURIComponent(id)}`);
-        if (res.ok) toast('📢 Preset afgespeeld!');
-        else toast('❌ Fout bij afspelen');
+        const preset = (currentPresets || []).find(p => p.id === id);
+        if (!preset || !preset.text) {
+          toast('❌ Preset niet gevonden');
+          return;
+        }
+        btn.disabled = true;
+        const res = await api('/api/say', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: preset.text })
+        });
+        btn.disabled = false;
+        if (res.ok) {
+          toast(`📢 Preset '${preset.name}' verzonden naar het hoofdscherm!`);
+        } else {
+          toast('❌ ' + ((res.data && res.data.message) || 'Fout bij verzenden naar hoofdscherm'));
+        }
       });
     });
 
