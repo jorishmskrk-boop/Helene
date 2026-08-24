@@ -709,6 +709,7 @@ async function speakToDisplays(text: string, forceSpooky: boolean = false): Prom
         }
       }
     } else if (seg.type === "pause" && seg.durationMs) {
+      broadcastToDisplays({ type: "pause", durationMs: seg.durationMs });
       await new Promise((resolve) => setTimeout(resolve, seg.durationMs));
     }
   }

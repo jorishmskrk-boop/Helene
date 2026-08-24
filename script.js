@@ -450,6 +450,15 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         audioBytesReceivedTotal += Math.round((msg.data.length * 3) / 4);
         playAudioChunk(msg.data);
         resetIdleTimer();
+      } else if (msg.type === "pause") {
+        const pauseSec = (msg.durationMs || 1000) / 1000;
+        if (outputAudioCtx) {
+          const currentTime = outputAudioCtx.currentTime;
+          if (nextStartTime < currentTime) {
+            nextStartTime = currentTime;
+          }
+          nextStartTime += pauseSec;
+        }
       } else if (msg.type === "user_transcription") {
         console.log(`%c🎤 [VERSTAAN DOOR HÉLÈNE]: "${msg.text}"`, "color: #38bdf8; font-weight: bold; font-size: 14px; background: rgba(56,189,248,0.1); padding: 4px 8px; border-radius: 4px;");
         log(`Gebruiker ingesproken tekst: "${msg.text}"`);

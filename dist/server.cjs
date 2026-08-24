@@ -583,6 +583,7 @@ async function speakToDisplays(text, forceSpooky = false) {
         }
       }
     } else if (seg.type === "pause" && seg.durationMs) {
+      broadcastToDisplays({ type: "pause", durationMs: seg.durationMs });
       await new Promise((resolve) => setTimeout(resolve, seg.durationMs));
     }
   }
