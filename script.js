@@ -644,9 +644,7 @@ function updateCoordinatesUI(coordState) {
     return;
   }
 
-  const textStr = coordState.text || "52.0391589, 6.3850740";
-  render7SegmentTextDisplay(display, textStr);
-
+  display.textContent = coordState.text || "52.0391589, 6.3850740";
   overlay.classList.add("active");
   document.body.classList.add("coordinates-active");
 }

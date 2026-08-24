@@ -981,54 +981,53 @@
         transform: translate(-50%, -50%);
         z-index: 9900;
         pointer-events: none;
+        width: min(92vw, 1150px);
       }
       #hackerCoordinatesOverlay.active {
         display: flex;
       }
       .hacker-coord-box {
-        background: rgba(6, 8, 14, 0.95);
+        background: rgba(6, 8, 14, 0.96);
         border: 3px solid #00ff66;
-        border-radius: 20px;
-        padding: 26px 48px;
-        box-shadow: 0 0 45px rgba(0, 255, 102, 0.45), inset 0 0 25px rgba(0, 255, 102, 0.2);
+        border-radius: 24px;
+        padding: 32px 40px;
+        box-shadow: 0 0 50px rgba(0, 255, 102, 0.45), inset 0 0 30px rgba(0, 255, 102, 0.2);
         text-align: center;
-        backdrop-filter: blur(12px);
+        backdrop-filter: blur(16px);
         animation: coordBlinkPulse 1.8s infinite ease-in-out alternate;
+        width: 100%;
+        box-sizing: border-box;
       }
       .hacker-coord-label {
-        font-size: clamp(1rem, 1.6vw, 1.6rem);
+        font-size: clamp(1rem, 1.8vw, 1.8rem);
         font-weight: 800;
         color: #00f0ff;
-        letter-spacing: 0.3em;
-        margin-bottom: 12px;
-        text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+        letter-spacing: 0.35em;
+        margin-bottom: 16px;
+        text-shadow: 0 0 14px rgba(0, 240, 255, 0.8);
         text-transform: uppercase;
       }
       .hacker-coord-display {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: clamp(2px, 0.4vw, 6px);
-        flex-wrap: wrap;
-        margin: 14px 0;
+        font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Courier New", monospace;
+        font-size: clamp(2rem, 4.4vw, 4.8rem);
+        font-weight: 900;
+        color: #00ff66;
+        letter-spacing: 0.12em;
+        white-space: nowrap;
+        text-shadow: 0 0 20px rgba(0, 255, 102, 0.95), 0 0 40px rgba(0, 255, 102, 0.6);
+        line-height: 1.25;
+        margin: 16px 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
         animation: coordTextGlow 1.2s infinite ease-in-out alternate;
       }
-      .hacker-coord-display .seg-digit {
-        width: clamp(1.5rem, 3.2vw, 3.6rem);
-        height: clamp(2.6rem, 5.6vw, 6.4rem);
-        display: inline-block;
-      }
-      .hacker-coord-display .seg-space {
-        width: clamp(0.7rem, 1.5vw, 1.8rem);
-        height: clamp(2.6rem, 5.6vw, 6.4rem);
-      }
       .hacker-coord-sub {
-        font-size: clamp(0.85rem, 1.2vw, 1.2rem);
+        font-size: clamp(0.9rem, 1.3vw, 1.3rem);
         font-weight: 700;
         color: #38bdf8;
-        letter-spacing: 0.25em;
-        margin-top: 14px;
-        text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+        letter-spacing: 0.3em;
+        margin-top: 16px;
+        text-shadow: 0 0 12px rgba(56, 189, 248, 0.7);
         text-transform: uppercase;
       }
       @keyframes coordBlinkPulse {
