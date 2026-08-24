@@ -49,7 +49,8 @@ server.on("upgrade", (request, socket, head) => {
     console.error("[SERVER] Fout bij WebSocket upgrade:", err);
   }
 });
-app.use(import_express.default.json());
+app.use(import_express.default.json({ limit: "50mb" }));
+app.use(import_express.default.urlencoded({ limit: "50mb", extended: true }));
 var SETTINGS_FILE = import_path.default.join(process.cwd(), "settings.json");
 var DEFAULT_SETTINGS = {
   systemInstruction: `Je bent H\xE9l\xE8ne, de digitale gids van een scoutingkamp \xE9n een slimme, alwetende AI-assistent.

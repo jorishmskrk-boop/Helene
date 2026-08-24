@@ -1649,7 +1649,7 @@
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDim = 1200;
+        const maxDim = 1000;
 
         if (width > maxDim || height > maxDim) {
           if (width > height) {
@@ -1666,12 +1666,13 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        adminSelectedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        adminSelectedBase64 = canvas.toDataURL('image/jpeg', 0.82);
         if (adminPhotoPreviewImg) adminPhotoPreviewImg.src = adminSelectedBase64;
         if (adminPhotoPreviewBox) adminPhotoPreviewBox.style.display = 'block';
         if (adminPhotoDropLabel) adminPhotoDropLabel.textContent = `[ OK ] ${file.name} geladen (klik om te wijzigen)`;
         toast('📷 Foto geladen en gereed voor upload');
       };
+      img.onerror = () => toast('❌ Kon afbeelding niet verwerken.');
       img.src = event.target.result;
     };
     reader.readAsDataURL(file);
@@ -1715,13 +1716,13 @@
           resetAdminPhotoForm();
           fetchPendingPhotos();
         } else {
-          toast('❌ Fout bij goedkeuren van upload');
+          toast('❌ ' + ((modRes.data && modRes.data.message) || 'Fout bij goedkeuren van upload'));
         }
       } else {
-        toast('❌ Fout bij uploaden foto');
+        toast('❌ ' + ((submitRes.data && submitRes.data.message) || 'Fout bij uploaden foto'));
       }
     } catch (e) {
-      toast('❌ Fout bij uploaden foto');
+      toast('❌ Netwerk- of uploadfout');
     } finally {
       btn.disabled = false;
     }
@@ -1750,10 +1751,10 @@
         resetAdminPhotoForm();
         fetchPendingPhotos();
       } else {
-        toast('❌ Fout bij toevoegen foto aan wachtrij');
+        toast('❌ ' + ((submitRes.data && submitRes.data.message) || 'Fout bij toevoegen foto aan wachtrij'));
       }
     } catch (e) {
-      toast('❌ Fout bij toevoegen foto aan wachtrij');
+      toast('❌ Netwerk- of uploadfout');
     } finally {
       btn.disabled = false;
     }
