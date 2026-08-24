@@ -139,8 +139,10 @@ async function generateElevenLabsAudio(text, settings) {
         text,
         model_id: modelId,
         voice_settings: {
-          stability: 0.35,
-          similarity_boost: 0.75
+          stability: 0.25,
+          similarity_boost: 0.85,
+          style: 0.45,
+          use_speaker_boost: true
         }
       })
     });

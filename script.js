@@ -837,18 +837,25 @@ async function playAudioChunk(base64Data) {
     let subSource = null;
 
     if (isCurrentTurnSpooky) {
-      // Hoofdstem licht vertraagd voor dreiging, maar 100% haarscherp verstaanbaar
-      source.playbackRate.value = 0.92;
+      // Donkere, boze hoofdstem met verlaagde pitch
+      source.playbackRate.value = 0.86;
 
-      // Subtiele schaduwstem op de achtergrond voor griezeleffect zonder gemompel
+      // Diepe dreigende schaduwstem op de achtergrond
       subSource = outputAudioCtx.createBufferSource();
       subSource.buffer = buffer;
-      subSource.playbackRate.value = 0.75;
+      subSource.playbackRate.value = 0.68;
 
       const subGain = outputAudioCtx.createGain();
-      subGain.gain.value = 0.18; // Zeer subtiel volume zodat de hoofdstem 100% helder blijft
+      subGain.gain.value = 0.28;
 
-      subSource.connect(subGain);
+      // Lowshelf filter voor een zware, boze bas-rumble
+      const biquad = outputAudioCtx.createBiquadFilter();
+      biquad.type = "lowshelf";
+      biquad.frequency.value = 350;
+      biquad.gain.value = 10;
+
+      subSource.connect(biquad);
+      biquad.connect(subGain);
       subGain.connect(outputAnalyser);
       source.connect(outputAnalyser);
 
