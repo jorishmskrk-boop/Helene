@@ -1148,108 +1148,46 @@ window.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ============================================================================
-// FUTURISTIC SCAN ANIMATION CONTROLLER
+// FULLSCREEN REALISTIC PHOTO SCANNER CONTROLLER
 // ============================================================================
-let audioSynthCtx = null;
-
-function playScanTone(type) {
-  try {
-    if (!audioSynthCtx) {
-      audioSynthCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioSynthCtx.state === "suspended") audioSynthCtx.resume();
-
-    const now = audioSynthCtx.currentTime;
-
-    if (type === "scan_start") {
-      const osc = audioSynthCtx.createOscillator();
-      const gain = audioSynthCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(300, now);
-      osc.frequency.exponentialRampToValueAtTime(1200, now + 1.5);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.linearRampToValueAtTime(0, now + 1.6);
-      osc.connect(gain);
-      gain.connect(audioSynthCtx.destination);
-      osc.start(now);
-      osc.stop(now + 1.6);
-    } else if (type === "approved") {
-      const freqs = [523.25, 659.25, 783.99, 1046.5];
-      freqs.forEach((f, i) => {
-        const osc = audioSynthCtx.createOscillator();
-        const gain = audioSynthCtx.createGain();
-        osc.type = "triangle";
-        osc.frequency.value = f;
-        const startTime = now + i * 0.1;
-        gain.gain.setValueAtTime(0.25, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
-        osc.connect(gain);
-        gain.connect(audioSynthCtx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + 0.6);
-      });
-    } else if (type === "rejected") {
-      const osc = audioSynthCtx.createOscillator();
-      const gain = audioSynthCtx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(150, now);
-      osc.frequency.setValueAtTime(110, now + 0.2);
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.7);
-      osc.connect(gain);
-      gain.connect(audioSynthCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.7);
-    }
-  } catch (e) {
-    console.error("Fout bij afspelen scan tone:", e);
-  }
-}
 
 function handlePhotoScanned(msg) {
   const overlay = document.getElementById("photoScanOverlay");
   const scanImg = document.getElementById("scanImage");
   const scanBeam = document.getElementById("scanBeam");
-  const symbol = document.getElementById("scanVerdictSymbol");
 
   if (!overlay || !scanImg || !scanBeam) return;
 
-  // Reset classes
+  // Reset overlay state
   overlay.className = "";
   scanBeam.classList.remove("scanning");
-  if (symbol) symbol.textContent = "";
 
   scanImg.src = msg.imageData;
 
-  // 1. Toon het foto-scherm in te vullen beeld
+  // 1. Toon de foto fullscreen op het scherm
   overlay.classList.add("active");
-  playScanTone("scan_start");
 
-  // 2. Start de realistische scan lichtbalk
+  // 2. Start de lichtbalk scan sweep
   setTimeout(() => {
     scanBeam.classList.add("scanning");
   }, 200);
 
-  // 3. Oordeel uitslag na de scan sweep
+  // 3. Kleur de scanbalk groen of rood zodra de scan compleet is
   setTimeout(() => {
     scanBeam.classList.remove("scanning");
 
     if (msg.status === "approved") {
       overlay.classList.add("approved");
-      if (symbol) symbol.textContent = "✓";
-      playScanTone("approved");
     } else {
       overlay.classList.add("rejected");
-      if (symbol) symbol.textContent = "✕";
-      playScanTone("rejected");
     }
   }, 2400);
 
-  // 4. Sluit fullscreen scan en keur naar normaal na 5.5 seconden
+  // 4. Houd de foto fullscreen in beeld gedurende het uitspreken (~6.5 seconden)
   setTimeout(() => {
     overlay.classList.remove("active");
     setTimeout(() => {
       overlay.className = "";
     }, 500);
-  }, 5500);
+  }, 6500);
 }

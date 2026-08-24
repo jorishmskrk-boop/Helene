@@ -817,15 +817,18 @@ app.post("/api/foto/moderate", (req, res) => {
       return res.status(404).json({ status: "error", message: "Foto niet gevonden." });
     }
     photo.status = action === "approve" ? "approved" : "rejected";
+    const spokenText = photo.status === "approved" ? `De opdracht van ${photo.groupName} is Goedgekeurd.` : `De opdracht van ${photo.groupName} is Afgekeurd.`;
     const count = broadcastToDisplays({
       type: "photo_scanned",
       photoId: photo.id,
       groupName: photo.groupName,
       imageData: photo.imageData,
-      status: photo.status
+      status: photo.status,
+      spokenText
     });
-    addLog("system", photo.status === "approved" ? "\u2705 Foto goedgekeurd" : "\u274C Foto afgekeurd", `Groep: ${photo.groupName}`);
-    res.json({ status: "ok", count, photoId: photo.id, newStatus: photo.status });
+    speakToDisplays(spokenText).catch((e) => console.error("[SERVER] Fout bij uitspreken foto-oordeel:", e));
+    addLog("system", photo.status === "approved" ? "\u2705 Foto goedgekeurd" : "\u274C Foto afgekeurd", `Groep: ${photo.groupName} - "${spokenText}"`);
+    res.json({ status: "ok", count, photoId: photo.id, newStatus: photo.status, spokenText });
   } catch (err) {
     res.status(500).json({ status: "error", message: err?.message || "Fout bij modereren foto." });
   }

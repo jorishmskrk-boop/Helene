@@ -982,6 +982,10 @@ app.post("/api/foto/moderate", (req, res) => {
     }
     photo.status = action === "approve" ? "approved" : "rejected";
 
+    const spokenText = photo.status === "approved"
+      ? `De opdracht van ${photo.groupName} is Goedgekeurd.`
+      : `De opdracht van ${photo.groupName} is Afgekeurd.`;
+
     // Broadcast scan-animatie commando naar hoofdschermen (index.html)
     const count = broadcastToDisplays({
       type: "photo_scanned",
@@ -989,10 +993,14 @@ app.post("/api/foto/moderate", (req, res) => {
       groupName: photo.groupName,
       imageData: photo.imageData,
       status: photo.status,
+      spokenText,
     });
 
-    addLog("system", photo.status === "approved" ? "✅ Foto goedgekeurd" : "❌ Foto afgekeurd", `Groep: ${photo.groupName}`);
-    res.json({ status: "ok", count, photoId: photo.id, newStatus: photo.status });
+    // Spreek het oordeel uit via Hélène's stem
+    speakToDisplays(spokenText).catch((e) => console.error("[SERVER] Fout bij uitspreken foto-oordeel:", e));
+
+    addLog("system", photo.status === "approved" ? "✅ Foto goedgekeurd" : "❌ Foto afgekeurd", `Groep: ${photo.groupName} - "${spokenText}"`);
+    res.json({ status: "ok", count, photoId: photo.id, newStatus: photo.status, spokenText });
   } catch (err: any) {
     res.status(500).json({ status: "error", message: err?.message || "Fout bij modereren foto." });
   }
