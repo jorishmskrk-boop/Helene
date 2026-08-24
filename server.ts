@@ -112,31 +112,30 @@ function pcmToWavBase64(pcmBase64: string, sampleRate = 16000): string {
 
 // Hulpfunctie: ElevenLabs Audio Generatie via Geoptimaliseerde Stream API
 async function generateElevenLabsAudio(text: string, settings: any): Promise<string | null> {
-  const apiKey = settings.elevenlabsApiKey || process.env.ELEVENLABS_API_KEY;
+  const apiKey = (settings.elevenlabsApiKey || process.env.ELEVENLABS_API_KEY || "").trim();
   if (!apiKey) {
     console.warn("[ELEVENLABS] Geen API Key gevonden in instellingen of process.env.ELEVENLABS_API_KEY.");
     return null;
   }
-  const voiceId = settings.elevenlabsVoiceId || "21m00Tcm4TlvDq8ikWAM";
-  // Standaard ultrasnel eleven_flash_v2_5 model voor minimale vertraging (~75ms)
+  const voiceId = (settings.elevenlabsVoiceId || settings.spookyVoiceName || "21m00Tcm4TlvDq8ikWAM").trim();
   const modelId = settings.elevenlabsModelId || "eleven_flash_v2_5";
 
   try {
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=pcm_24000&optimize_streaming_latency=4`;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=mp3_44100_128`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "xi-api-key": apiKey,
         "Content-Type": "application/json",
-        "Accept": "audio/pcm",
+        "Accept": "audio/mpeg",
       },
       body: JSON.stringify({
         text: text,
         model_id: modelId,
         voice_settings: {
-          stability: 0.25,
+          stability: 0.30,
           similarity_boost: 0.85,
-          style: 0.45,
+          style: 0.40,
           use_speaker_boost: true,
         },
       }),
@@ -151,8 +150,8 @@ async function generateElevenLabsAudio(text: string, settings: any): Promise<str
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     return buffer.toString("base64");
-  } catch (err) {
-    console.error("[ELEVENLABS] Uitzondering bij spraakgeneratie:", err);
+  } catch (err: any) {
+    console.error("[ELEVENLABS] Uitzondering bij spraakgeneratie:", err?.message || err);
     return null;
   }
 }
@@ -199,8 +198,9 @@ async function generateGeminiTTSAudio(text: string, settings: any): Promise<stri
   try {
     if (getGeminiApiKey().length === 0) return null;
 
-    const voiceName =
-      settings.voiceName && String(settings.voiceName).trim().length > 0 ? String(settings.voiceName).trim() : "Kore";
+    const VALID_GEMINI_VOICES = ["Kore", "Puck", "Charon", "Fenrir", "Aoede", "Zephyr"];
+    const rawVoice = settings.voiceName && String(settings.voiceName).trim().length > 0 ? String(settings.voiceName).trim() : "Kore";
+    const voiceName = VALID_GEMINI_VOICES.includes(rawVoice) ? rawVoice : "Charon";
     const ttsModel = settings.geminiTtsModel || "gemini-2.5-flash-preview-tts";
     const aiClient = getGenAIClient();
 
@@ -234,60 +234,41 @@ async function generateGeminiTTSAudio(text: string, settings: any): Promise<stri
 }
 
 async function generateTTSAudio(text: string, settings: any, isSpooky: boolean = false): Promise<string | null> {
+  // Strip pauze-markeringen ([stilte: 2s]) uit de spraaktekst voor de TTS API's
+  const cleanText = (text || "").replace(/\s*\[\s*(?:stilte|pauze|pause)[^\]]*\]\s*|<break[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
+  if (!cleanText) return null;
+
   const effectiveSettings = { ...settings };
-  if ((isSpooky || settings.spookyVoiceMode === true) && settings.spookyVoiceName) {
-    const spookyVoice = String(settings.spookyVoiceName).trim();
-    effectiveSettings.voiceName = spookyVoice;
-    if (spookyVoice.length > 12) {
-      effectiveSettings.elevenlabsVoiceId = spookyVoice;
-      const hasElKey = (process.env.ELEVENLABS_API_KEY || settings.elevenlabsApiKey || "").trim().length > 0;
-      if (hasElKey) {
-        effectiveSettings.ttsEngine = "elevenlabs";
+
+  // Als de griezelstem of spooky mode actief is (of ttsEngine === "elevenlabs"), stuur verplicht via ElevenLabs!
+  if (isSpooky || settings.spookyVoiceMode === true || effectiveSettings.ttsEngine === "elevenlabs") {
+    effectiveSettings.ttsEngine = "elevenlabs";
+    if (settings.spookyVoiceName) {
+      const spookyVoice = String(settings.spookyVoiceName).trim();
+      if (spookyVoice.length > 12) {
+        effectiveSettings.elevenlabsVoiceId = spookyVoice;
       }
     }
-  }
 
-  // 1. ElevenLabs (alleen als expliciet gekozen) — ongewijzigd gedrag
-  if (effectiveSettings.ttsEngine === "elevenlabs") {
-    // Koppel bekende stemnamen aan ElevenLabs Voice IDs als er geen specifieke ID is ingevuld
-    const voiceNameMap: Record<string, string> = {
-      Puck: "xC48XEWkfc3AvKqzOgCD",
-      Kore: "21m00Tcm4TlvDq8ikWAM",
-      Charon: "pNInz6obpgDQGcFmaJgB",
-      Fenrir: "ErXwobaYiN019PkySvjV",
-      Aoede: "EXAVITQu4vr4xnSDxMaL",
-      Zephyr: "VR6AewLTigWG4xSOukaG",
-    };
-
-    if (!effectiveSettings.elevenlabsVoiceId && effectiveSettings.voiceName && voiceNameMap[effectiveSettings.voiceName]) {
-      effectiveSettings.elevenlabsVoiceId = voiceNameMap[effectiveSettings.voiceName];
-    }
-
-    const elAudio = await generateElevenLabsAudio(text, effectiveSettings);
+    const elAudio = await generateElevenLabsAudio(cleanText, effectiveSettings);
     if (elAudio) return elAudio;
-    // Bij falen: terugvallen op de gratis stem (zoals voorheen)
-    return await generateFreeSpeechAudio(text, effectiveSettings.voiceName);
+    console.warn("[TTS] ElevenLabs audio kon niet worden gegenereerd (controleer de ElevenLabs API key in Beheer).");
   }
 
-  // 2. Expliciete keuze voor de oude gratis stem (Google Translate TTS)
+  // 2. Expliciete keuze voor de gratis stem (Google Translate TTS)
   if (effectiveSettings.ttsEngine === "free") {
-    return await generateFreeSpeechAudio(text, effectiveSettings.voiceName);
+    return await generateFreeSpeechAudio(cleanText, effectiveSettings.voiceName);
   }
 
-  // 3. Standaard ("gemini"): natuurlijke Gemini-stem. Om te voorkomen dat de stem
-  //    middenin een antwoord "wisselt" naar de gratis stem, proberen we het eerst
-  //    nog een keer opnieuw. Pas als het echt niet lukt, valt hij terug (zodat er
-  //    nooit stilte valt) — dat blijft zeldzaam.
-  let geminiAudio = await generateGeminiTTSAudio(text, effectiveSettings);
+  // 3. Standaard Gemini TTS stem
+  let geminiAudio = await generateGeminiTTSAudio(cleanText, effectiveSettings);
   if (!geminiAudio) {
     await new Promise((resolve) => setTimeout(resolve, 350));
-    geminiAudio = await generateGeminiTTSAudio(text, effectiveSettings);
+    geminiAudio = await generateGeminiTTSAudio(cleanText, effectiveSettings);
   }
   if (geminiAudio) return geminiAudio;
 
-  console.warn("[TTS] Gemini-stem gaf geen audio; tijdelijke terugval op gratis stem.");
-  addLog("error", "⚠️ Gemini-stem haperde — tijdelijk gratis stem gebruikt", "Controleer of het TTS-model beschikbaar is voor je API-sleutel");
-  return await generateFreeSpeechAudio(text, effectiveSettings.voiceName);
+  return await generateFreeSpeechAudio(cleanText, effectiveSettings.voiceName);
 }
 
 // Global error handlers om te voorkomen dat de server crasht bij onafgehandelde uitzonderingen
