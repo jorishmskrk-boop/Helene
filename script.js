@@ -522,19 +522,111 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
   };
 
 // ============================================================================
-// DIGITALE HACKER TIMER LOGICA & GELUID
+// DIGITALE HACKER TIMER LOGICA, 7-SEGMENT & GELUID
 // ============================================================================
 let hackerTimerInterval = null;
+let lastTimerSec = -1;
+let lastSpokenSec = -1;
+let timerAudioCtx = null;
+
+const DUTCH_COUNTDOWN_NUMBERS = {
+  10: "Tien",
+  9: "Negen",
+  8: "Acht",
+  7: "Zeven",
+  6: "Zes",
+  5: "Vijf",
+  4: "Vier",
+  3: "Drie",
+  2: "Twee",
+  1: "Eén"
+};
+
+const SEGMENT_MAP = {
+  '0': ['a', 'b', 'c', 'd', 'e', 'f'],
+  '1': ['b', 'c'],
+  '2': ['a', 'b', 'd', 'e', 'g'],
+  '3': ['a', 'b', 'c', 'd', 'g'],
+  '4': ['b', 'c', 'f', 'g'],
+  '5': ['a', 'c', 'd', 'f', 'g'],
+  '6': ['a', 'c', 'd', 'e', 'f', 'g'],
+  '7': ['a', 'b', 'c'],
+  '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+  '9': ['a', 'b', 'c', 'd', 'f', 'g']
+};
+
+function render7SegmentDigit(digitEl, char) {
+  if (!digitEl) return;
+  const activeSegs = SEGMENT_MAP[char] || [];
+  ['a', 'b', 'c', 'd', 'e', 'f', 'g'].forEach((seg) => {
+    const el = digitEl.querySelector('.seg-' + seg);
+    if (el) {
+      if (activeSegs.includes(seg)) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    }
+  });
+}
+
+function update7SegmentDisplay(formatted) {
+  const parts = formatted.split(':');
+  if (parts.length !== 2) return;
+  const m = parts[0];
+  const s = parts[1];
+  render7SegmentDigit(document.getElementById("seg-m1"), m[0] || '0');
+  render7SegmentDigit(document.getElementById("seg-m2"), m[1] || '0');
+  render7SegmentDigit(document.getElementById("seg-s1"), s[0] || '0');
+  render7SegmentDigit(document.getElementById("seg-s2"), s[1] || '0');
+}
+
+function playTimerTickSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!timerAudioCtx) timerAudioCtx = new AudioCtx();
+    if (timerAudioCtx.state === "suspended") timerAudioCtx.resume();
+
+    const now = timerAudioCtx.currentTime;
+    const osc = timerAudioCtx.createOscillator();
+    const gain = timerAudioCtx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1400, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.012);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
+
+    osc.connect(gain);
+    gain.connect(timerAudioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.015);
+  } catch (e) {}
+}
+
+function speakTimerAnnouncement(text) {
+  try {
+    fetch("/api/say", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    }).catch((e) => console.error("Fout bij versturen spraakbericht timer:", e));
+  } catch (e) {}
+}
 
 function updateHackerTimerUI(timerState) {
   const overlay = document.getElementById("hackerTimerOverlay");
-  const display = document.getElementById("hackerTimerDisplay");
   const sub = document.getElementById("hackerTimerSub");
 
-  if (!overlay || !display || !sub) return;
+  if (!overlay || !sub) return;
 
   if (!timerState || !timerState.active) {
     overlay.classList.remove("active", "paused", "finished");
+    document.body.classList.remove("timer-active");
+    lastTimerSec = -1;
+    lastSpokenSec = -1;
     if (hackerTimerInterval) {
       clearInterval(hackerTimerInterval);
       hackerTimerInterval = null;
@@ -543,6 +635,7 @@ function updateHackerTimerUI(timerState) {
   }
 
   overlay.classList.add("active");
+  document.body.classList.add("timer-active");
 
   const updateDisplay = () => {
     let remSec = timerState.remainingSeconds;
@@ -554,12 +647,38 @@ function updateHackerTimerUI(timerState) {
     const mins = Math.floor(remSec / 60);
     const secs = remSec % 60;
     const formatted = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-    display.textContent = formatted;
+    update7SegmentDisplay(formatted);
+
+    // Audio-tik en gesproken berichten in gekozen stem wanneer de timer niet gepauzeerd is
+    if (!timerState.paused && remSec >= 0) {
+      if (remSec !== lastTimerSec) {
+        if (remSec > 0) {
+          playTimerTickSound();
+        }
+
+        // 1. Elke 5 minuten een gesproken bericht uitspreken (bijv. 20m, 15m, 10m, 5m)
+        if (remSec > 0 && remSec % 300 === 0 && remSec !== lastSpokenSec) {
+          lastSpokenSec = remSec;
+          const minsRem = remSec / 60;
+          speakTimerAnnouncement(`Er zijn nog ${minsRem} minuten op de klok.`);
+        }
+        // 2. Laatste 10 seconden hardop aftellen in de geselecteerde stem
+        else if (remSec <= 10 && remSec >= 1 && remSec !== lastSpokenSec) {
+          lastSpokenSec = remSec;
+          const numText = DUTCH_COUNTDOWN_NUMBERS[remSec];
+          if (numText) {
+            speakTimerAnnouncement(numText);
+          }
+        }
+
+        lastTimerSec = remSec;
+      }
+    }
 
     if (remSec === 0) {
       overlay.classList.remove("paused");
       overlay.classList.add("finished");
-      sub.textContent = "TIJD IS OM!";
+      sub.textContent = "DE TIJD IS OM!";
       if (hackerTimerInterval) {
         clearInterval(hackerTimerInterval);
         hackerTimerInterval = null;
@@ -571,7 +690,7 @@ function updateHackerTimerUI(timerState) {
       sub.textContent = "GEPAUZEERD";
     } else {
       overlay.classList.remove("paused", "finished");
-      sub.textContent = "COUNTDOWN";
+      sub.textContent = "TIJD RESTEREND";
     }
   };
 
@@ -1278,16 +1397,40 @@ window.addEventListener("DOMContentLoaded", async () => {
 // FULLSCREEN REALISTIC PHOTO SCANNER CONTROLLER
 // ============================================================================
 
+function playPhotoRejectionAlarmSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const audioCtx = new AudioCtx();
+    const now = audioCtx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(960, now + i * 0.35);
+      osc.frequency.setValueAtTime(640, now + i * 0.35 + 0.15);
+      gain.gain.setValueAtTime(0.4, now + i * 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.35 + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + i * 0.35);
+      osc.stop(now + i * 0.35 + 0.32);
+    }
+  } catch (e) {}
+}
+
 function handlePhotoScanned(msg) {
   const overlay = document.getElementById("photoScanOverlay");
   const scanImg = document.getElementById("scanImage");
   const scanBeam = document.getElementById("scanBeam");
+  const rejectionCrossSvg = document.getElementById("rejectionCrossSvg");
 
   if (!overlay || !scanImg || !scanBeam) return;
 
   // Reset overlay state
   overlay.className = "";
   scanBeam.classList.remove("scanning");
+  if (rejectionCrossSvg) rejectionCrossSvg.style.display = "none";
 
   scanImg.src = msg.imageData;
 
@@ -1307,12 +1450,15 @@ function handlePhotoScanned(msg) {
       overlay.classList.add("approved");
     } else {
       overlay.classList.add("rejected");
+      if (rejectionCrossSvg) rejectionCrossSvg.style.display = "block";
+      playPhotoRejectionAlarmSound();
     }
   }, 3800);
 
   // 4. Houd de foto fullscreen in beeld gedurende het uitspreken (~10.5 seconden)
   setTimeout(() => {
     overlay.classList.remove("active");
+    if (rejectionCrossSvg) rejectionCrossSvg.style.display = "none";
     setTimeout(() => {
       overlay.className = "";
     }, 500);

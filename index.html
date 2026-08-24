@@ -827,13 +827,23 @@
         50% { transform: scale(0.95) translate(5px, -3px); }
       }
 
-      /* Simpele Retro Hacker Timer Overlay */
+      /* Gecentreerde Retro 7-Segment Timer Overlay & Gezicht Verbergen */
+      body.timer-active #scoutEyesContainer,
+      body.timer-active #canvasContainer,
+      body.timer-active #zzzContainer,
+      body.timer-active #thinkingSpinner,
+      body.timer-active #bottomSection {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
       #hackerTimerOverlay {
         display: none;
         position: fixed;
-        top: 6vh;
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
         z-index: 9900;
         pointer-events: none;
       }
@@ -841,69 +851,171 @@
         display: flex;
       }
       .hacker-timer-box {
-        background: rgba(6, 8, 14, 0.92);
-        border: 2px solid #00ff66;
-        border-radius: 12px;
-        padding: 16px 36px;
-        box-shadow: 0 0 25px rgba(0, 255, 102, 0.35), inset 0 0 15px rgba(0, 255, 102, 0.15);
-        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+        background: rgba(6, 8, 14, 0.95);
+        border: 3px solid #00ff66;
+        border-radius: 20px;
+        padding: 24px 48px;
+        box-shadow: 0 0 40px rgba(0, 255, 102, 0.4), inset 0 0 20px rgba(0, 255, 102, 0.2);
         text-align: center;
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(12px);
         transition: border-color 0.3s ease, box-shadow 0.3s ease;
       }
-      #hackerTimerDisplay {
-        font-size: clamp(3.5rem, 7vw, 7rem);
-        font-weight: 900;
-        color: #00ff66;
-        letter-spacing: 0.08em;
-        text-shadow: 0 0 20px rgba(0, 255, 102, 0.8), 0 0 40px rgba(0, 255, 102, 0.4);
-        line-height: 1;
+      .seg-display {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(4px, 1vw, 10px);
       }
-      #hackerTimerSub {
-        font-size: clamp(0.9rem, 1.4vw, 1.4rem);
-        font-weight: 700;
-        color: #00f0ff;
-        letter-spacing: 0.25em;
-        margin-top: 6px;
-        text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
-        text-transform: uppercase;
+      .seg-svg {
+        width: clamp(3rem, 7.5vw, 8rem);
+        height: clamp(5.2rem, 13vw, 14rem);
+        display: inline-block;
+      }
+      .seg {
+        fill: rgba(0, 255, 102, 0.07);
+        transition: fill 0.12s ease, filter 0.12s ease;
+      }
+      .seg.active {
+        fill: #00ff66;
+        filter: drop-shadow(0 0 10px #00ff66) drop-shadow(0 0 22px rgba(0, 255, 102, 0.85));
       }
       #hackerTimerOverlay.paused .hacker-timer-box {
         border-color: #f39c12;
-        box-shadow: 0 0 25px rgba(243, 156, 18, 0.4);
+        box-shadow: 0 0 40px rgba(243, 156, 18, 0.45);
       }
-      #hackerTimerOverlay.paused #hackerTimerDisplay {
-        color: #f39c12;
-        text-shadow: 0 0 20px rgba(243, 156, 18, 0.8);
+      #hackerTimerOverlay.paused .seg.active {
+        fill: #f39c12;
+        filter: drop-shadow(0 0 10px #f39c12) drop-shadow(0 0 22px rgba(243, 156, 18, 0.85));
+      }
+      #hackerTimerOverlay.paused .seg {
+        fill: rgba(243, 156, 18, 0.08);
       }
       #hackerTimerOverlay.paused #hackerTimerSub {
         color: #f1c40f;
       }
       #hackerTimerOverlay.finished .hacker-timer-box {
         border-color: #ef4444;
-        box-shadow: 0 0 35px rgba(239, 68, 68, 0.7);
+        box-shadow: 0 0 50px rgba(239, 68, 68, 0.8);
         animation: timerFinishPulse 0.4s infinite ease-in-out alternate;
       }
-      #hackerTimerOverlay.finished #hackerTimerDisplay {
-        color: #ef4444;
-        text-shadow: 0 0 25px rgba(239, 68, 68, 0.9);
+      #hackerTimerOverlay.finished .seg.active {
+        fill: #ef4444;
+        filter: drop-shadow(0 0 12px #ef4444) drop-shadow(0 0 28px rgba(239, 68, 68, 0.95));
+      }
+      #hackerTimerOverlay.finished .seg {
+        fill: rgba(239, 68, 68, 0.08);
       }
       #hackerTimerOverlay.finished #hackerTimerSub {
         color: #f87171;
       }
+      .seg-colon {
+        font-size: clamp(4rem, 9vw, 9.5rem);
+        font-weight: 900;
+        color: #00ff66;
+        text-shadow: 0 0 24px rgba(0, 255, 102, 0.85);
+        margin: 0 clamp(2px, 0.5vw, 6px);
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        padding-bottom: 0.1em;
+      }
+      #hackerTimerOverlay.paused .seg-colon {
+        color: #f39c12;
+        text-shadow: 0 0 24px rgba(243, 156, 18, 0.85);
+      }
+      #hackerTimerOverlay.finished .seg-colon {
+        color: #ef4444;
+        text-shadow: 0 0 28px rgba(239, 68, 68, 0.95);
+      }
+      #hackerTimerSub {
+        font-size: clamp(1rem, 1.6vw, 1.6rem);
+        font-weight: 800;
+        color: #00f0ff;
+        letter-spacing: 0.3em;
+        margin-top: 12px;
+        text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+        text-transform: uppercase;
+      }
       @keyframes timerFinishPulse {
         0% { transform: scale(1); }
-        100% { transform: scale(1.05); }
+        100% { transform: scale(1.04); }
+      }
+
+      /* Fullscreen corner-to-corner rejection cross SVG */
+      #rejectionCrossSvg {
+        display: none;
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: 10000;
+      }
+      #rejectionCrossSvg line {
+        stroke: #ef4444;
+        stroke-width: 4;
+        filter: drop-shadow(0 0 20px #ef4444) drop-shadow(0 0 45px #ef4444);
+        animation: rejectionCrossFlash 0.35s infinite ease-in-out alternate;
+      }
+      @keyframes rejectionCrossFlash {
+        0% { opacity: 0.85; }
+        100% { opacity: 1; filter: drop-shadow(0 0 35px #ef4444) drop-shadow(0 0 70px #ef4444); }
       }
     </style>
   </head>
   <body>
     <div id="mainContainer">
-      <!-- Simpele Retro Hacker Timer Overlay -->
+      <!-- Gecentreerde Retro 7-Segment Timer Overlay -->
       <div id="hackerTimerOverlay">
         <div class="hacker-timer-box">
-          <div id="hackerTimerDisplay">00:00</div>
-          <div id="hackerTimerSub">COUNTDOWN</div>
+          <div id="hackerTimerDisplay" class="seg-display">
+            <div class="seg-digit" id="seg-m1">
+              <svg viewBox="0 0 40 70" class="seg-svg">
+                <polygon points="6,5 34,5 30,11 10,11" class="seg seg-a" />
+                <polygon points="35,6 35,33 29,29 29,12" class="seg seg-b" />
+                <polygon points="35,37 35,64 29,58 29,41" class="seg seg-c" />
+                <polygon points="6,65 34,65 30,59 10,59" class="seg seg-d" />
+                <polygon points="5,37 5,64 11,58 11,41" class="seg seg-e" />
+                <polygon points="5,6 5,33 11,29 11,12" class="seg seg-f" />
+                <polygon points="7,35 33,35 29,32 29,38" class="seg seg-g" />
+              </svg>
+            </div>
+            <div class="seg-digit" id="seg-m2">
+              <svg viewBox="0 0 40 70" class="seg-svg">
+                <polygon points="6,5 34,5 30,11 10,11" class="seg seg-a" />
+                <polygon points="35,6 35,33 29,29 29,12" class="seg seg-b" />
+                <polygon points="35,37 35,64 29,58 29,41" class="seg seg-c" />
+                <polygon points="6,65 34,65 30,59 10,59" class="seg seg-d" />
+                <polygon points="5,37 5,64 11,58 11,41" class="seg seg-e" />
+                <polygon points="5,6 5,33 11,29 11,12" class="seg seg-f" />
+                <polygon points="7,35 33,35 29,32 29,38" class="seg seg-g" />
+              </svg>
+            </div>
+            <div class="seg-colon">:</div>
+            <div class="seg-digit" id="seg-s1">
+              <svg viewBox="0 0 40 70" class="seg-svg">
+                <polygon points="6,5 34,5 30,11 10,11" class="seg seg-a" />
+                <polygon points="35,6 35,33 29,29 29,12" class="seg seg-b" />
+                <polygon points="35,37 35,64 29,58 29,41" class="seg seg-c" />
+                <polygon points="6,65 34,65 30,59 10,59" class="seg seg-d" />
+                <polygon points="5,37 5,64 11,58 11,41" class="seg seg-e" />
+                <polygon points="5,6 5,33 11,29 11,12" class="seg seg-f" />
+                <polygon points="7,35 33,35 29,32 29,38" class="seg seg-g" />
+              </svg>
+            </div>
+            <div class="seg-digit" id="seg-s2">
+              <svg viewBox="0 0 40 70" class="seg-svg">
+                <polygon points="6,5 34,5 30,11 10,11" class="seg seg-a" />
+                <polygon points="35,6 35,33 29,29 29,12" class="seg seg-b" />
+                <polygon points="35,37 35,64 29,58 29,41" class="seg seg-c" />
+                <polygon points="6,65 34,65 30,59 10,59" class="seg seg-d" />
+                <polygon points="5,37 5,64 11,58 11,41" class="seg seg-e" />
+                <polygon points="5,6 5,33 11,29 11,12" class="seg seg-f" />
+                <polygon points="7,35 33,35 29,32 29,38" class="seg seg-g" />
+              </svg>
+            </div>
+          </div>
+          <div id="hackerTimerSub">TIJD RESTEREND</div>
         </div>
       </div>
       <!-- Fullscreen Hackerscherm Video Overlay (alleen te stoppen vanuit beheer of na afspelen) -->
@@ -987,8 +1099,12 @@
 
     <!-- Fullscreen Realistic Photo Scanner Overlay -->
     <div id="photoScanOverlay">
-      <img id="scanImage" src="" alt="Scan Target" />
+      <img id="scanImage" src="" alt="Foto Doelwit" />
       <div id="scanBeam"></div>
+      <svg id="rejectionCrossSvg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line x1="0" y1="0" x2="100" y2="100" />
+        <line x1="100" y1="0" x2="0" y2="100" />
+      </svg>
     </div>
 
     <script type="module" src="/script.js"></script>
