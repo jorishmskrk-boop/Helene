@@ -439,6 +439,9 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
           log("Inkomende audio genegeerd omdat de gebruiker aan het opnemen is.");
           return;
         }
+        if (typeof msg.isSpooky === "boolean") {
+          isCurrentTurnSpooky = msg.isSpooky;
+        }
         isThinking = false;
         isHeleneSpeaking = true;
         audioBytesReceivedTotal += Math.round((msg.data.length * 3) / 4);

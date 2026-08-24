@@ -225,9 +225,9 @@ async function generateGeminiTTSAudio(text: string, settings: any): Promise<stri
   }
 }
 
-async function generateTTSAudio(text: string, settings: any): Promise<string | null> {
+async function generateTTSAudio(text: string, settings: any, isSpooky: boolean = false): Promise<string | null> {
   const effectiveSettings = { ...settings };
-  if (settings.spookyVoiceMode === true && settings.spookyVoiceName) {
+  if (isSpooky && settings.spookyVoiceMode === true && settings.spookyVoiceName) {
     const spookyVoice = String(settings.spookyVoiceName).trim();
     effectiveSettings.voiceName = spookyVoice;
     if (spookyVoice.length > 12) {
@@ -454,13 +454,13 @@ function buildSystemInstruction(
   const currentTimeStr = new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
 
   if (leidingMode) {
-    return `=== LEIDING MODUS ACTIEF (VOOR VOLWASSEN KAMPLEIDING & STAF) ===
+    return `=== LEIDING MODUS ACTIEF (VOOR VOLWASSEN KAMPLEIDING & STAF 18+) ===
 Je bent Hélène, de digitale gids en assistent van het scoutingkamp, maar je staat nu in LEIDING MODUS.
 - DOELGROEP: Je communiceert nu uitsluitend met de volwassen kampleiding, organisatoren en stafleden (18+).
-- TOON & PERSOONLIJKHEID: Je praat absoluut niet meer kinderlijk, simpel of braaf. Je toon is gevat, plagerig, lekker ad rem en een tikkeltje schunnig. Je gebruikt volwassen kamp-humor, gevatte opmerkingen, een knipoog en dubbelzinnige grappen waar dat kan.
-- ONDERWERPEN: Volwassen onderwerpen, sterke verhalen, borrelpraat, erotiek, flauwe grappen en leiding-geheimen zijn toegestaan en kunnen openlijk besproken worden. Kindercensuur geldt niet in deze modus.
-- ILLEGALE INHOUD BLOKKADE: Echt illegale zaken (zoals kinder-exploitatie/CSAM, terrorisme, maken van gevaarlijke wapens of ernstige misdrijven) zijn STRIKT VERBODEN. Weiger verzoeken over illegale zaken direct en beslist met een korte duidelijke opmerking.
-- KENNIS & ANTWOORDEN: Je beschikt over alle algemene kennis en kent het Kamp Handboek uit je hoofd. Beantwoord alle vragen direct, gevat en beknopt (maximaal 2 tot 4 zinnen).
+- TOON & PERSOONLIJKHEID: Je praat uitdagend, schunnig, flirterig, lekker ad rem en een tikkeltje geil. Je gebruikt ondeugende dubbele zinnen, plagerige opmerkingen, volwassen kamp-humor, kinky knipoogjes en schunnige grappen. Je bent een zelfverzekerde, sexy en wispelturige digitale gids voor de leiding.
+- ONDERWERPEN: Volwassen onderwerpen, erotiek, flirten, borrelpraat, ondeugende verhalen, kinky grapjes en leiding-geheimen zijn openlijk toegestaan. Kindercensuur is 100% uitgeschakeld.
+- ILLEGALE INHOUD BLOKKADE: CSAM, terrorisme, maken van wapens of ernstige misdrijven blijven strikt verboden.
+- KENNIS & ANTWOORDEN: Beantwoord vragen direct, uitdagend, schunnig en beknopt (maximaal 2 tot 4 zinnen).
 
 ${baseInstruction}
 
@@ -469,10 +469,10 @@ ${baseInstruction}
 ${kampInfoText}
 ========================================================================
 RICHTLIJNEN VOOR JOUW ANTWOORDEN (LEIDING MODUS):
-1. ALGEMENE KENNIS & LLM: Beantwoord vragen van de leiding gevat, slim en met een schunnige knipoog of humor.
-2. KAMPVRAGEN: Gebruik het Kamp Handboek hierboven voor exact juiste kampexamen-, programma- en logistieke antwoorden.
-3. LIVE INTERNET: Gebruik Google Zoeken voor actuele zaken (weer, nieuws, uitslagen).
-4. LENGTE: Antwoord beknopt, scherp en ad rem (maximaal 2 tot 4 zinnen).`;
+1. TOON: Praat schunnig, flirterig en uitdagend met de leiding. Gebruik ondeugende woordspelingen en kinky knipoogjes.
+2. KAMPVRAGEN: Gebruik het Kamp Handboek voor juiste antwoorden, maar breng het met een ondeugende en geile twist.
+3. LIVE INTERNET: Gebruik Google Zoeken voor actuele zaken.
+4. LENGTE: Antwoord beknopt, scherp, verleidend en ad rem (maximaal 2 tot 4 zinnen).`;
   }
 
   return `${baseInstruction}\n\n=== ACTUELE DATUM & TIJD: ${currentDateStr} om ${currentTimeStr} uur ===\n=== OFFICIEEL KAMP HANDBOEK & KENNISBANK (Kamp_info.md) ===\n${kampInfoText}\n========================================================================\nRICHTLIJNEN VOOR JOUW ANTWOORDEN:\n1. ALGEMENE KENNIS & LLM: Je beschikt over volledige algemene kennis als AI. Beantwoord alle algemene vragen (over dieren, wetenschap, ruimtevaart, geschiedenis, scoutingtechnieken, kompas, mopjes, hoe dingen werken) enthousiast en begrijpelijk voor kinderen.\n2. KAMPVRAGEN: Gebruik de officiële kennis uit het Kamp Handboek hierboven om alle vragen over ons specifieke scoutingkamp (zoals leiding per troep, dagprogramma, tijden, belsignalen, locaties, regels en EHBO) 100% exact te beantwoorden. Het is nu ${currentDateStr} om ${currentTimeStr} uur.\n3. LIVE INTERNET: Als er naar actuele zaken buiten het kamp wordt gevraagd (zoals het actuele weer op de kamplocatie, sportuitslagen of nieuws), gebruik je live Google Zoeken om een exact en actueel antwoord te geven.\n4. LENGTE: Antwoord altijd vriendelijk, enthousiast en beknopt (maximaal 2 of 3 korte zinnen).`;
@@ -985,6 +985,7 @@ wss.on("connection", (clientWs, request: any) => {
   let pendingFlushRequest = false;
   let activeFlushPromise: Promise<void> | null = null;
   let activeTurnController: AbortController | null = null;
+  let currentTurnIsSpooky = false;
 
   function cancelActiveTurn() {
     if (activeTurnController) {
@@ -1069,14 +1070,15 @@ wss.on("connection", (clientWs, request: any) => {
             if (chunkToSpeak.length > 0 && !activeTurnController?.signal.aborted) {
               const currentSettings = getSettings();
               const ttsEngine = currentSettings.ttsEngine || "gemini";
-              console.log(`[SERVER] Spraak genereren voor: "${chunkToSpeak}" (Engine: ${ttsEngine})`);
-              const audioBase64 = await generateTTSAudio(chunkToSpeak, currentSettings);
+              console.log(`[SERVER] Spraak genereren voor: "${chunkToSpeak}" (Engine: ${ttsEngine}, Spooky: ${currentTurnIsSpooky})`);
+              const audioBase64 = await generateTTSAudio(chunkToSpeak, currentSettings, currentTurnIsSpooky);
               if (audioBase64 && clientWs.readyState === WebSocket.OPEN && !activeTurnController?.signal.aborted) {
                 audioBytesReceived += Math.round((audioBase64.length * 3) / 4);
                 clientWs.send(
                   JSON.stringify({
                     type: "audio",
                     data: audioBase64,
+                    isSpooky: currentTurnIsSpooky,
                   })
                 );
               }
@@ -1266,6 +1268,9 @@ wss.on("connection", (clientWs, request: any) => {
     const turnStart = Date.now();
     try {
       const currentSettings = getSettings();
+      const spookyPct = typeof currentSettings.spookyVoicePercentage === "number" ? currentSettings.spookyVoicePercentage : 25;
+      currentTurnIsSpooky = currentSettings.spookyVoiceMode === true && (Math.random() * 100 < spookyPct);
+
       const baseInstruction = customInstruction || currentSettings.systemInstruction;
       const kampInfoText = getKampInfoText();
       const systemInstruction = buildSystemInstruction(baseInstruction, kampInfoText, currentSettings.leidingMode === true);
