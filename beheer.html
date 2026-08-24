@@ -287,6 +287,8 @@
     <nav class="nav" id="nav">
       <button class="active" data-tab="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overzicht</button>
       <button data-tab="say"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 14-7v16L3 13v-2Z"/><path d="M17 8a3 3 0 0 1 0 8"/><path d="M6 13v4a2 2 0 0 0 2 2h1"/></svg>Mededelingen</button>
+      <button data-tab="presets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>URL's &amp; Presets</button>
+      <button data-tab="foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Foto Moderatie <span id="fotoNavBadge" class="chip warn" style="display:none;margin-left:auto;padding:1px 6px;font-size:0.68rem;">0</span></button>
       <button data-tab="kb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2V5Z"/><path d="M18 3v18"/><path d="M8 7h6M8 11h6"/></svg>Kennisbank</button>
       <button data-tab="voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/></svg>Stem &amp; AI</button>
       <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>Instellingen</button>
@@ -378,6 +380,81 @@
             </button>
           </div>
           <div id="hackerStatusMsg" class="status-msg" style="margin-top:10px;"></div>
+        </div>
+      </section>
+
+      <!-- ===== SPRAAK URL'S & PRESETS ===== -->
+      <section class="panel" id="panel-presets">
+        <div class="card">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+              Spraak Presets &amp; Korte URL's
+            </h2>
+          </div>
+          <p class="help">Beheer hier vaste omroepberichten. Elk bericht krijgt een korte URL en een QR-code die je kunt scannen of delen om de tekst direct af te spelen op het scherm.</p>
+          
+          <div id="presetList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+            <!-- presets worden hier ingeladen -->
+          </div>
+
+          <div style="background:var(--surface-2);border:1px solid var(--border-strong);border-radius:14px;padding:16px;margin-top:10px;">
+            <h3 style="font-size:0.95rem;margin-bottom:12px;display:flex;align-items:center;gap:6px;">➕ Nieuwe Preset Toevoegen</h3>
+            <div class="grid2" style="margin-bottom:10px;">
+              <div>
+                <label class="fld" for="newPresetId">URL Sleutel / ID (bijv. <code>eten</code>)</label>
+                <input type="text" id="newPresetId" placeholder="eten" style="font-family:monospace;" />
+              </div>
+              <div>
+                <label class="fld" for="newPresetName">Naam / Label</label>
+                <input type="text" id="newPresetName" placeholder="Tijd voor het eten" />
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:12px;">
+              <label class="fld" for="newPresetText">Gesproken Tekst</label>
+              <textarea id="newPresetText" rows="2" placeholder="Het eten is klaar! Iedereen aan tafel."></textarea>
+            </div>
+            <button class="btn" id="btnAddPreset">➕ Opslaan als Preset</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg></span>
+              Vrije Tekst URL Generator
+            </h2>
+          </div>
+          <p class="help">Typ een willekeurige tekst om direct een unieke Spraak-URL of QR-code te genereren.</p>
+          <div class="field">
+            <textarea id="customUrlText" rows="2" placeholder="Typ hier een tekst…"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button class="btn" id="btnGenCopy">📋 Kopieer Spraak-URL</button>
+            <button class="btn ghost" id="btnGenQr">📱 Genereer QR-Code</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== FOTO MODERATIE ===== -->
+      <section class="panel" id="panel-foto">
+        <div class="card">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+              📷 Inkomende Foto Moderatie
+            </h2>
+            <button class="btn ghost" id="btnRefreshPhotos" style="padding:6px 12px;font-size:0.8rem;">🔄 Vernieuwen</button>
+          </div>
+          <p class="help">Foto's die via <code>/foto</code> worden ingestuurd verschijnen hier in de wachtrij. Zodra je ze goedkeurt of afkeurt, wordt de scan-animatie op het kampscherm getoond!</p>
+          
+          <div style="background:var(--accent-tint);border:1px solid var(--accent);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:0.84rem;font-weight:600;color:var(--accent-deep);display:flex;align-items:center;gap:8px;">
+            <span>💡 <strong>Sneltoetsen:</strong> Druk op de toetsenbord-pijlen <strong>➔ (Rechts)</strong> om de bovenste foto goed te keuren of <strong>⬅️ (Links)</strong> om af te keuren.</span>
+          </div>
+
+          <div id="photoQueueContainer" style="display:flex;flex-direction:column;gap:16px;">
+            <div style="color:var(--muted);text-align:center;padding:2rem;">Bezig met foto's laden…</div>
+          </div>
         </div>
       </section>
 
@@ -932,6 +1009,281 @@
   $('logRefresh').addEventListener('click',()=>{fetchLogs();toast('🔄 Ververst');});
   $('logClear').addEventListener('click', async ()=>{ if(confirm('Logboek wissen?')){ await api('/api/logs/clear',{method:'POST'}); fetchLogs(); toast('🗑️ Gewist'); }});
 
+  // ---------- presets & url's ----------
+  let currentPresets = [];
+  function renderPresets() {
+    const list = $('presetList');
+    if (!list) return;
+    list.innerHTML = '';
+    const hostUrl = window.location.origin;
+
+    if (!currentPresets || currentPresets.length === 0) {
+      list.innerHTML = '<div style="color:var(--muted);text-align:center;padding:1rem;">Nog geen spraak presets ingesteld.</div>';
+      return;
+    }
+
+    currentPresets.forEach((p, idx) => {
+      const fullUrl = `${hostUrl}/spreek/${encodeURIComponent(p.id)}`;
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;';
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div>
+            <strong style="font-size:0.98rem;color:var(--ink);">${esc(p.name)}</strong>
+            <span class="mono" style="font-size:0.75rem;background:var(--surface);padding:2px 8px;border-radius:6px;border:1px solid var(--border-strong);color:var(--accent);margin-left:8px;">/spreek/${esc(p.id)}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn ghost btn-test-preset" data-id="${esc(p.id)}" style="padding:5px 10px;font-size:0.8rem;" title="Test afspelen op kampscherm">▶️ Test</button>
+            <button class="btn btn-copy-preset" data-url="${esc(fullUrl)}" style="padding:5px 10px;font-size:0.8rem;">📋 Kopieer URL</button>
+            <button class="btn ghost btn-qr-preset" data-url="${esc(fullUrl)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;">📱 QR Code</button>
+            <button class="btn ghost btn-del-preset" data-idx="${idx}" style="padding:5px 8px;font-size:0.8rem;color:var(--crit);border-color:var(--crit);" title="Verwijderen">🗑️</button>
+          </div>
+        </div>
+        <div style="font-size:0.88rem;color:var(--ink-soft);font-style:italic;">"${esc(p.text)}"</div>
+      `;
+      list.appendChild(card);
+    });
+
+    list.querySelectorAll('.btn-test-preset').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const res = await api(`/spreek/${encodeURIComponent(id)}`);
+        if (res.ok) toast('📢 Preset afgespeeld!');
+        else toast('❌ Fout bij afspelen');
+      });
+    });
+
+    list.querySelectorAll('.btn-copy-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(btn.dataset.url);
+        toast('📋 URL gekopieerd naar klembord!');
+      });
+    });
+
+    list.querySelectorAll('.btn-qr-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showQrModal(btn.dataset.name, btn.dataset.url);
+      });
+    });
+
+    list.querySelectorAll('.btn-del-preset').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        currentPresets.splice(idx, 1);
+        await saveSettings({ presets: currentPresets });
+        renderPresets();
+        toast('🗑️ Preset verwijderd');
+      });
+    });
+  }
+
+  $('btnAddPreset')?.addEventListener('click', async () => {
+    const id = $('newPresetId').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const name = $('newPresetName').value.trim();
+    const text = $('newPresetText').value.trim();
+
+    if (!id || !name || !text) {
+      toast('⚠️ Vul a.u.b. een ID, Naam en Tekst in.');
+      return;
+    }
+
+    currentPresets.push({ id, name, text });
+    await saveSettings({ presets: currentPresets });
+    $('newPresetId').value = '';
+    $('newPresetName').value = '';
+    $('newPresetText').value = '';
+    renderPresets();
+    toast('✅ Preset opgeslagen!');
+  });
+
+  $('btnGenCopy')?.addEventListener('click', () => {
+    const txt = $('customUrlText').value.trim();
+    if (!txt) { toast('⚠️ Typ eerst een tekst in.'); return; }
+    const url = `${window.location.origin}/spreek?tekst=${encodeURIComponent(txt)}`;
+    navigator.clipboard.writeText(url);
+    toast('📋 Unieke Spraak-URL gekopieerd!');
+  });
+
+  $('btnGenQr')?.addEventListener('click', () => {
+    const txt = $('customUrlText').value.trim();
+    if (!txt) { toast('⚠️ Typ eerst een tekst in.'); return; }
+    const url = `${window.location.origin}/spreek?tekst=${encodeURIComponent(txt)}`;
+    showQrModal("Spraak-URL", url);
+  });
+
+  // ---------- QR modal ----------
+  let activeQrUrl = '';
+  function showQrModal(title, url) {
+    activeQrUrl = url;
+    $('qrModalTitle').textContent = '📱 QR-Code: ' + title;
+    $('qrModalSub').textContent = url;
+    $('qrModalImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(url)}`;
+    $('qrOverlay').style.display = 'flex';
+  }
+
+  function closeQrModal() {
+    $('qrOverlay').style.display = 'none';
+  }
+
+  $('closeQrBtn')?.addEventListener('click', closeQrModal);
+  $('qrCloseBtn')?.addEventListener('click', closeQrModal);
+  $('qrCopyBtn')?.addEventListener('click', () => {
+    if (activeQrUrl) {
+      navigator.clipboard.writeText(activeQrUrl);
+      toast('📋 URL gekopieerd!');
+    }
+  });
+
+  // ---------- foto moderatie ----------
+  let pendingPhotos = [];
+  async function fetchPendingPhotos() {
+    const { ok, data } = await api('/api/foto/pending');
+    if (!ok || !data) return;
+    pendingPhotos = data.photos || [];
+    renderQueue();
+  }
+
+  function renderQueue() {
+    const container = $('photoQueueContainer');
+    const badge = $('fotoNavBadge');
+    if (!container) return;
+
+    if (badge) {
+      if (pendingPhotos.length > 0) {
+        badge.textContent = pendingPhotos.length;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    if (pendingPhotos.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:2.5rem 1rem;color:var(--muted);">
+          <div style="font-size:2rem;margin-bottom:8px;">✨</div>
+          <strong>Geen openstaande foto's in de wachtrij.</strong>
+          <div style="font-size:0.82rem;margin-top:4px;">Foto's die via <code style="color:var(--accent);">/foto</code> worden ingestuurd verschijnen hier direct.</div>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = '';
+    pendingPhotos.forEach((photo, idx) => {
+      const card = document.createElement('div');
+      const isTop = idx === 0;
+      card.style.cssText = `background:var(--surface-2);border:2px solid ${isTop ? 'var(--accent)' : 'var(--border)'};border-radius:16px;padding:16px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;position:relative;`;
+      
+      card.innerHTML = `
+        <div style="width:120px;height:120px;border-radius:12px;overflow:hidden;flex:none;background:#000;border:1px solid var(--border-strong);">
+          <img src="${photo.imageData}" alt="Foto" style="width:100%;height:100%;object-fit:cover;" />
+        </div>
+        <div style="flex:1;min-width:200px;">
+          ${isTop ? '<span class="chip good" style="margin-bottom:6px;font-size:0.68rem;">EERST VOLGENDE (Druk ➔ of ⬅️)</span>' : ''}
+          <div style="font-size:1.1rem;font-weight:800;color:var(--ink);">${esc(photo.groupName)}</div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;">Tijdstip: ${esc(photo.timestamp)}</div>
+          <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+            <button class="btn btn-approve-photo" data-id="${photo.id}" style="background:var(--good);padding:8px 16px;font-size:0.88rem;">✅ Goedkeuren (➔)</button>
+            <button class="btn btn-reject-photo" data-id="${photo.id}" style="background:var(--crit);padding:8px 16px;font-size:0.88rem;">❌ Afkeuren (⬅️)</button>
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    container.querySelectorAll('.btn-approve-photo').forEach(btn => {
+      btn.addEventListener('click', () => moderatePhoto(btn.dataset.id, 'approve'));
+    });
+    container.querySelectorAll('.btn-reject-photo').forEach(btn => {
+      btn.addEventListener('click', () => moderatePhoto(btn.dataset.id, 'reject'));
+    });
+  }
+
+  async function moderatePhoto(photoId, action) {
+    const res = await api('/api/foto/moderate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photoId, action })
+    });
+    if (res.ok) {
+      toast(action === 'approve' ? '✅ Foto goedgekeurd & verzonden naar scherm!' : '❌ Foto afgekeurd');
+      fetchPendingPhotos();
+    } else {
+      toast('❌ Fout bij modereren foto');
+    }
+  }
+
+  $('btnRefreshPhotos')?.addEventListener('click', () => {
+    fetchPendingPhotos();
+    toast('🔄 Foto wachtrij bijgewerkt');
+  });
+
+  // Toetsenbord sneltoetsen op foto tab
+  window.addEventListener('keydown', (e) => {
+    const fotoPanel = $('panel-foto');
+    if (fotoPanel && fotoPanel.classList.contains('show') && pendingPhotos.length > 0) {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        moderatePhoto(pendingPhotos[0].id, 'approve');
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        moderatePhoto(pendingPhotos[0].id, 'reject');
+      }
+    }
+  });
+
+  // Update loadSettings to populate presets
+  const originalLoadSettings = loadSettings;
+  loadSettings = async function() {
+    const { ok, data } = await api('/api/settings');
+    if (ok && data) {
+      currentPresets = data.presets || [];
+      renderPresets();
+    }
+    await originalLoadSettings();
+  };
+
+  // Update saveSettings to preserve presets
+  const originalSaveSettings = saveSettings;
+  saveSettings = async function(extraProps = {}) {
+    const payload = {
+      systemInstruction: $('sysInstr').value,
+      ttsEngine: state.ttsEngine,
+      voiceName: state.voiceName,
+      elevenlabsApiKey: $('elKey').value.trim(),
+      elevenlabsVoiceId: $('elVoice').value.trim(),
+      elevenlabsModelId: $('elModel').value,
+      openrouterApiKey: $('orKey').value.trim(),
+      openrouterModel: $('orModel').value,
+      modelName: $('modelName').value,
+      liveModel: $('liveModel').value,
+      idleTimeoutMs: parseInt($('idleSec').value,10)*1000,
+      maxSessionDurationMs: parseInt($('maxMin').value,10)*60000,
+      showSubtitles: $('showSubs').checked,
+      sleepMode: $('sleepMode').checked,
+      leidingMode: $('leidingMode').checked,
+      autoResetLeidingMode: $('autoResetLeidingMode').checked,
+      spookyVoiceMode: $('spookyVoiceMode').checked,
+      spookyVoicePercentage: parseInt($('spookyVoicePct').value, 10) || 25,
+      spookyVoiceName: $('spookyVoiceName').value,
+      accentColor: currentColor(),
+      presets: currentPresets,
+      ...extraProps
+    };
+    const { ok, data } = await api('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (ok) {
+      saved = { ttsEngine: state.ttsEngine, voiceName: state.voiceName };
+      updateActiveVoice();
+      toast('💾 Instellingen opgeslagen');
+    } else {
+      toast('❌ Opslaan mislukt');
+    }
+  };
+
   // ---------- authenticatie ----------
   async function handleLogin(){
     const pass = $('authPass').value.trim();
@@ -982,9 +1334,26 @@
   $('logoutBtn').addEventListener('click', handleLogout);
 
   // ---------- init ----------
-  checkAuth(); loadSettings(); loadKnowledge(); loadStatus(); fetchLogs();
+  checkAuth(); loadSettings(); loadKnowledge(); loadStatus(); fetchLogs(); fetchPendingPhotos();
   setInterval(loadStatus, 5000);
+  setInterval(fetchPendingPhotos, 4000);
   setInterval(()=>{ if($('panel-log').classList.contains('show')) fetchLogs(); }, 4000);
 </script>
+
+<!-- QR Code Modal Overlay -->
+<div id="qrOverlay" style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border-strong);border-radius:24px;padding:32px 28px;max-width:420px;width:100%;text-align:center;box-shadow:var(--shadow-lg);position:relative;">
+    <button type="button" id="closeQrBtn" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;">✕</button>
+    <h3 id="qrModalTitle" class="rounded" style="margin-bottom:6px;font-size:1.25rem;color:var(--ink);">📱 QR-Code Spraak-URL</h3>
+    <p id="qrModalSub" style="font-size:0.82rem;color:var(--muted);margin-bottom:18px;word-break:break-all;"></p>
+    <div style="background:#fff;padding:16px;border-radius:16px;display:inline-block;box-shadow:var(--shadow);">
+      <img id="qrModalImg" src="" alt="QR Code" style="width:220px;height:220px;display:block;" />
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;">
+      <button class="btn" id="qrCopyBtn">📋 Kopieer Link</button>
+      <button class="btn ghost" id="qrCloseBtn">Sluiten</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
