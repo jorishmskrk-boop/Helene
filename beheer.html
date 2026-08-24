@@ -1300,7 +1300,8 @@
             <span class="mono" style="font-size:0.75rem;background:var(--surface);padding:2px 8px;border-radius:6px;border:1px solid var(--border-strong);color:var(--accent);margin-left:8px;">/spreek/${esc(p.id)}</span>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn ghost btn-test-preset" data-text="${esc(p.text)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;" title="Test afspelen op hoofdscherm">▶️ Test op Hoofdscherm</button>
+            <button class="btn ghost btn-test-preset" data-text="${esc(p.text)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;" title="Omroepen op het hoofdscherm">▶️ Omroepen op Hoofdscherm</button>
+            <button class="btn ghost btn-local-preset" data-text="${esc(p.text)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;" title="Beluister op dit mobiel/laptop">🔊 Beluister hier</button>
             <button class="btn btn-copy-preset" data-url="${esc(fullUrl)}" style="padding:5px 10px;font-size:0.8rem;">📋 Kopieer URL</button>
             <button class="btn ghost btn-qr-preset" data-url="${esc(fullUrl)}" data-name="${esc(p.name)}" style="padding:5px 10px;font-size:0.8rem;">📱 QR Code</button>
             <button class="btn ghost btn-del-preset" data-idx="${idx}" style="padding:5px 8px;font-size:0.8rem;color:var(--crit);border-color:var(--crit);" title="Verwijderen">🗑️</button>
@@ -1327,9 +1328,41 @@
         });
         btn.disabled = false;
         if (res.ok) {
-          toast(`📢 Preset '${name}' verzonden naar het hoofdscherm!`);
+          const count = (res.data && res.data.displays) || 0;
+          if (count === 0) {
+            toast('⚠️ Geen scherm verbonden! Open Hélène op het hoofdscherm (📺 /hoofdscherm).');
+          } else {
+            toast(`📢 Preset '${name}' omgeroepen op ${count} scherm(en)!`);
+          }
         } else {
-          toast('❌ ' + ((res.data && res.data.message) || 'Fout bij verzenden naar hoofdscherm'));
+          toast('❌ ' + ((res.data && res.data.message) || 'Fout bij omroepen naar hoofdscherm'));
+        }
+      });
+    });
+
+    list.querySelectorAll('.btn-local-preset').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = btn.dataset.text;
+        const name = btn.dataset.name;
+        if (!text) return;
+        btn.disabled = true;
+        toast(`⏳ Preset '${name}' lokaal genereren…`);
+        try {
+          const res = await api('/api/tts/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          });
+          btn.disabled = false;
+          if (res.ok && res.data && res.data.audioBase64) {
+            await playAudio(res.data.audioBase64);
+            toast(`🔊 '${name}' lokaal afgespeeld!`);
+          } else {
+            toast('❌ ' + ((res.data && res.data.message) || 'Fout bij genereren audio'));
+          }
+        } catch (e) {
+          btn.disabled = false;
+          toast('❌ Kon audio niet lokaal afspelen');
         }
       });
     });

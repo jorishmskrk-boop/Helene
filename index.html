@@ -1005,14 +1005,22 @@
         text-transform: uppercase;
       }
       .hacker-coord-display {
-        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
-        font-size: clamp(2.8rem, 5.5vw, 5.5rem);
-        font-weight: 900;
-        color: #00ff66;
-        letter-spacing: 0.08em;
-        text-shadow: 0 0 20px rgba(0, 255, 102, 0.9), 0 0 40px rgba(0, 255, 102, 0.5);
-        line-height: 1.15;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(2px, 0.4vw, 6px);
+        flex-wrap: wrap;
+        margin: 14px 0;
         animation: coordTextGlow 1.2s infinite ease-in-out alternate;
+      }
+      .hacker-coord-display .seg-digit {
+        width: clamp(1.5rem, 3.2vw, 3.6rem);
+        height: clamp(2.6rem, 5.6vw, 6.4rem);
+        display: inline-block;
+      }
+      .hacker-coord-display .seg-space {
+        width: clamp(0.7rem, 1.5vw, 1.8rem);
+        height: clamp(2.6rem, 5.6vw, 6.4rem);
       }
       .hacker-coord-sub {
         font-size: clamp(0.85rem, 1.2vw, 1.2rem);
@@ -1047,10 +1055,41 @@
           text-shadow: 0 0 30px rgba(0, 255, 102, 1), 0 0 50px rgba(0, 255, 102, 0.6);
         }
       }
+
+      /* Floating Audio Unlock Prompt for TV/Main display */
+      #audioUnlockPrompt {
+        display: none;
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10001;
+        background: rgba(15, 23, 42, 0.92);
+        border: 2px solid #38bdf8;
+        color: #f8fafc;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+        cursor: pointer;
+        align-items: center;
+        gap: 10px;
+        animation: pulseUnlock 1.5s infinite alternate;
+      }
+      @keyframes pulseUnlock {
+        0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        100% { transform: translateX(-50%) scale(1.04); box-shadow: 0 0 35px rgba(56, 189, 248, 0.8); }
+      }
     </style>
   </head>
   <body>
     <div id="mainContainer">
+      <!-- Floating Audio Unlock Prompt -->
+      <div id="audioUnlockPrompt" onclick="if(window.ensureAudioUnlocked) window.ensureAudioUnlocked(); this.style.display='none';">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        <span>Klik op het scherm om geluid in te schakelen</span>
+      </div>
       <!-- Gecentreerde Retro 7-Segment Timer Overlay -->
       <div id="hackerTimerOverlay">
         <div class="hacker-timer-box">

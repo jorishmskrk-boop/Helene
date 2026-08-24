@@ -524,6 +524,114 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
     }
   };
 
+const SEGMENT_MAP = {
+  '0': ['a', 'b', 'c', 'd', 'e', 'f'],
+  '1': ['b', 'c'],
+  '2': ['a', 'b', 'd', 'e', 'g'],
+  '3': ['a', 'b', 'c', 'd', 'g'],
+  '4': ['b', 'c', 'f', 'g'],
+  '5': ['a', 'c', 'd', 'f', 'g'],
+  '6': ['a', 'c', 'd', 'e', 'f', 'g'],
+  '7': ['a', 'b', 'c'],
+  '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+  '9': ['a', 'b', 'c', 'd', 'f', 'g'],
+  'A': ['a', 'b', 'c', 'e', 'f', 'g'],
+  'B': ['c', 'd', 'e', 'f', 'g'],
+  'C': ['a', 'd', 'e', 'f'],
+  'D': ['b', 'c', 'd', 'e', 'g'],
+  'E': ['a', 'd', 'e', 'f', 'g'],
+  'F': ['a', 'e', 'f', 'g'],
+  'G': ['a', 'c', 'd', 'e', 'f'],
+  'H': ['b', 'c', 'e', 'f', 'g'],
+  'I': ['b', 'c'],
+  'L': ['d', 'e', 'f'],
+  'N': ['c', 'e', 'g'],
+  'O': ['a', 'b', 'c', 'd', 'e', 'f'],
+  'P': ['a', 'b', 'e', 'f', 'g'],
+  'R': ['e', 'g'],
+  'S': ['a', 'c', 'd', 'f', 'g'],
+  'T': ['d', 'e', 'f', 'g'],
+  'U': ['b', 'c', 'd', 'e', 'f'],
+  '-': ['g'],
+  '°': ['a', 'b', 'f', 'g']
+};
+
+function create7SegmentDigitSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 44 74");
+  svg.setAttribute("class", "seg-svg");
+  svg.innerHTML = `
+    <polygon points="6,5 34,5 30,11 10,11" class="seg seg-a" />
+    <polygon points="35,6 35,33 29,29 29,12" class="seg seg-b" />
+    <polygon points="35,37 35,64 29,58 29,41" class="seg seg-c" />
+    <polygon points="6,65 34,65 30,59 10,59" class="seg seg-d" />
+    <polygon points="5,37 5,64 11,58 11,41" class="seg seg-e" />
+    <polygon points="5,6 5,33 11,29 11,12" class="seg seg-f" />
+    <polygon points="7,35 33,35 29,32 29,38" class="seg seg-g" />
+    <circle cx="40" cy="62" r="2.5" class="seg seg-dp" />
+    <path d="M 39 59 L 42 59 L 39 67 L 36 67 Z" class="seg seg-comma" />
+  `;
+  return svg;
+}
+
+function render7SegmentDigit(digitEl, char) {
+  if (!digitEl) return;
+  const upper = (char || '').toUpperCase();
+  const activeSegs = SEGMENT_MAP[upper] || [];
+
+  ['a', 'b', 'c', 'd', 'e', 'f', 'g'].forEach((seg) => {
+    const el = digitEl.querySelector('.seg-' + seg);
+    if (el) {
+      if (activeSegs.includes(seg)) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    }
+  });
+
+  const dpEl = digitEl.querySelector('.seg-dp');
+  if (dpEl) {
+    if (char === '.' || activeSegs.includes('dp')) {
+      dpEl.classList.add('active');
+    } else {
+      dpEl.classList.remove('active');
+    }
+  }
+
+  const commaEl = digitEl.querySelector('.seg-comma');
+  if (commaEl) {
+    if (char === ',' || activeSegs.includes('comma')) {
+      commaEl.classList.add('active');
+    } else {
+      commaEl.classList.remove('active');
+    }
+  }
+}
+
+function render7SegmentTextDisplay(containerEl, textStr) {
+  if (!containerEl) return;
+  containerEl.innerHTML = "";
+  const str = String(textStr || "");
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === " ") {
+      const spaceEl = document.createElement("div");
+      spaceEl.className = "seg-space";
+      containerEl.appendChild(spaceEl);
+      continue;
+    }
+
+    const digitDiv = document.createElement("div");
+    digitDiv.className = "seg-digit";
+    const svg = create7SegmentDigitSvg();
+    digitDiv.appendChild(svg);
+    render7SegmentDigit(digitDiv, char);
+    containerEl.appendChild(digitDiv);
+  }
+}
+
 function updateCoordinatesUI(coordState) {
   const overlay = document.getElementById("hackerCoordinatesOverlay");
   const display = document.getElementById("hackerCoordDisplay");
@@ -536,58 +644,11 @@ function updateCoordinatesUI(coordState) {
     return;
   }
 
-  display.textContent = coordState.text || "52.0391589, 6.3850740";
+  const textStr = coordState.text || "52.0391589, 6.3850740";
+  render7SegmentTextDisplay(display, textStr);
+
   overlay.classList.add("active");
   document.body.classList.add("coordinates-active");
-}
-
-// ============================================================================
-// DIGITALE HACKER TIMER LOGICA, 7-SEGMENT & GELUID
-// ============================================================================
-let hackerTimerInterval = null;
-let lastTimerSec = -1;
-let lastSpokenSec = -1;
-let timerAudioCtx = null;
-
-const DUTCH_COUNTDOWN_NUMBERS = {
-  10: "Tien",
-  9: "Negen",
-  8: "Acht",
-  7: "Zeven",
-  6: "Zes",
-  5: "Vijf",
-  4: "Vier",
-  3: "Drie",
-  2: "Twee",
-  1: "Eén"
-};
-
-const SEGMENT_MAP = {
-  '0': ['a', 'b', 'c', 'd', 'e', 'f'],
-  '1': ['b', 'c'],
-  '2': ['a', 'b', 'd', 'e', 'g'],
-  '3': ['a', 'b', 'c', 'd', 'g'],
-  '4': ['b', 'c', 'f', 'g'],
-  '5': ['a', 'c', 'd', 'f', 'g'],
-  '6': ['a', 'c', 'd', 'e', 'f', 'g'],
-  '7': ['a', 'b', 'c'],
-  '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
-  '9': ['a', 'b', 'c', 'd', 'f', 'g']
-};
-
-function render7SegmentDigit(digitEl, char) {
-  if (!digitEl) return;
-  const activeSegs = SEGMENT_MAP[char] || [];
-  ['a', 'b', 'c', 'd', 'e', 'f', 'g'].forEach((seg) => {
-    const el = digitEl.querySelector('.seg-' + seg);
-    if (el) {
-      if (activeSegs.includes(seg)) {
-        el.classList.add('active');
-      } else {
-        el.classList.remove('active');
-      }
-    }
-  });
 }
 
 function update7SegmentDisplay(formatted) {
@@ -847,11 +908,16 @@ function logSessionAudioStats() {
 // ============================================================================
 function ensureAudioUnlocked() {
   try {
+    const prompt = document.getElementById("audioUnlockPrompt");
     if (!outputAudioCtx) {
       outputAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (outputAudioCtx.state === "suspended") {
-      outputAudioCtx.resume().catch(() => {});
+      outputAudioCtx.resume().then(() => {
+        if (prompt && outputAudioCtx.state === "running") prompt.style.display = "none";
+      }).catch(() => {});
+    } else if (prompt) {
+      prompt.style.display = "none";
     }
     if (!inputAudioCtx) {
       inputAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -866,6 +932,7 @@ function ensureAudioUnlocked() {
     src.start(0);
   } catch (e) {}
 }
+window.ensureAudioUnlocked = ensureAudioUnlocked;
 
 async function initMicrophoneStream() {
   if (mediaStream) return mediaStream;
@@ -1033,6 +1100,16 @@ async function playAudioChunk(base64Data) {
   }
   isThinking = false;
   ensureAudioUnlocked();
+
+  const prompt = document.getElementById("audioUnlockPrompt");
+  if (outputAudioCtx && outputAudioCtx.state === "suspended") {
+    outputAudioCtx.resume().then(() => {
+      if (prompt && outputAudioCtx.state === "running") prompt.style.display = "none";
+    }).catch(() => {});
+    if (prompt) prompt.style.display = "flex";
+  } else if (prompt) {
+    prompt.style.display = "none";
+  }
 
   if (!outputAnalyser) {
     outputAnalyser = outputAudioCtx.createAnalyser();
