@@ -381,6 +381,52 @@
           </div>
           <div id="hackerStatusMsg" class="status-msg" style="margin-top:10px;"></div>
         </div>
+
+        <!-- Digitale Hacker Timer Control Card -->
+        <div class="card" style="border-color:var(--accent);background:color-mix(in srgb,var(--accent-tint) 35%,var(--surface));">
+          <div class="card-head">
+            <h2>
+              <span class="badge-ico" style="background:var(--accent-tint);color:var(--accent-deep);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              ⏱️ Digitale Hacker Timer
+            </h2>
+            <span id="hackerTimerBadge" class="chip off">Inactief</span>
+          </div>
+          <p class="help">Start een digitale retro countdown timer (minuten &amp; seconden) op alle verbonden kampschermen.</p>
+
+          <div class="grid2" style="margin-top:12px;">
+            <div>
+              <label class="fld" for="timerMinutes">Minuten</label>
+              <input type="number" id="timerMinutes" min="0" max="99" value="5" />
+            </div>
+            <div>
+              <label class="fld" for="timerSeconds">Seconden</label>
+              <input type="number" id="timerSeconds" min="0" max="59" value="0" />
+            </div>
+          </div>
+
+          <div class="quick-row" style="margin:10px 0;">
+            <button type="button" class="quick timer-quick" data-min="1" data-sec="0">⚡ 1 min</button>
+            <button type="button" class="quick timer-quick" data-min="2" data-sec="0">⚡ 2 min</button>
+            <button type="button" class="quick timer-quick" data-min="5" data-sec="0">⚡ 5 min</button>
+            <button type="button" class="quick timer-quick" data-min="10" data-sec="0">⚡ 10 min</button>
+            <button type="button" class="quick timer-quick" data-min="15" data-sec="0">⚡ 15 min</button>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+            <button type="button" id="btnStartTimer" class="btn" style="flex:2;min-height:44px;">
+              ▶️ Start Timer
+            </button>
+            <button type="button" id="btnPauseTimer" class="btn ghost" style="flex:1;min-height:44px;" disabled>
+              ⏸️ Pauzeer
+            </button>
+            <button type="button" id="btnStopTimer" class="btn ghost" style="flex:1;min-height:44px;border-color:var(--crit);color:var(--crit);" disabled>
+              ⏹️ Stop
+            </button>
+          </div>
+          <div id="hackerTimerStatusMsg" class="status-msg" style="margin-top:10px;"></div>
+        </div>
       </section>
 
       <!-- ===== SPRAAK URL'S & PRESETS ===== -->
@@ -922,6 +968,121 @@
       else toast('❌ Kon video niet stoppen');
     });
   }
+
+  // ---------- hacker timer control ----------
+  let timerInterval = null;
+
+  async function updateTimerStatus() {
+    const { ok, data } = await api('/api/hacker-timer');
+    if (!ok || !data || !data.timer) return;
+    renderTimerState(data.timer);
+  }
+
+  function renderTimerState(timer) {
+    const badge = $('hackerTimerBadge');
+    const statusMsg = $('hackerTimerStatusMsg');
+    const btnStart = $('btnStartTimer');
+    const btnPause = $('btnPauseTimer');
+    const btnStop = $('btnStopTimer');
+
+    if (!timer || !timer.active) {
+      if (badge) { badge.textContent = 'Inactief'; badge.className = 'chip off'; }
+      if (statusMsg) statusMsg.textContent = 'Geen actieve timer.';
+      if (btnStart) btnStart.disabled = false;
+      if (btnPause) { btnPause.disabled = true; btnPause.textContent = '⏸️ Pauzeer'; }
+      if (btnStop) btnStop.disabled = true;
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      return;
+    }
+
+    if (btnStop) btnStop.disabled = false;
+
+    let remSec = timer.remainingSeconds;
+    if (!timer.paused && timer.endTime) {
+      const now = Date.now();
+      remSec = Math.max(0, Math.ceil((timer.endTime - now) / 1000));
+    }
+
+    const mins = Math.floor(remSec / 60);
+    const secs = remSec % 60;
+    const timeFormatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (remSec === 0) {
+      if (badge) { badge.textContent = 'Tijd is om!'; badge.className = 'chip warn'; }
+      if (statusMsg) statusMsg.textContent = '🔔 Timer afgelopen! (00:00)';
+      if (btnPause) btnPause.disabled = true;
+      if (btnStart) btnStart.disabled = false;
+    } else if (timer.paused) {
+      if (badge) { badge.textContent = `Gepauzeerd (${timeFormatted})`; badge.className = 'chip warn'; }
+      if (statusMsg) statusMsg.textContent = `⏸️ Timer gepauzeerd op ${timeFormatted}`;
+      if (btnPause) { btnPause.disabled = false; btnPause.textContent = '▶️ Hervatten'; }
+      if (btnStart) btnStart.disabled = false;
+    } else {
+      if (badge) { badge.textContent = `Actief (${timeFormatted})`; badge.className = 'chip good'; }
+      if (statusMsg) statusMsg.textContent = `⏱️ Aftellen bezig: ${timeFormatted}`;
+      if (btnPause) { btnPause.disabled = false; btnPause.textContent = '⏸️ Pauzeer'; }
+      if (btnStart) btnStart.disabled = false;
+    }
+  }
+
+  $('btnStartTimer')?.addEventListener('click', async () => {
+    const mins = parseInt($('timerMinutes').value || '0', 10);
+    const secs = parseInt($('timerSeconds').value || '0', 10);
+    if (mins === 0 && secs === 0) {
+      toast('⚠️ Vul minimaal 1 seconde in.');
+      return;
+    }
+    const { ok, data } = await api('/api/hacker-timer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'start', minutes: mins, seconds: secs })
+    });
+    if (ok && data) {
+      toast(`⏱️ Timer gestart op ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}!`);
+      renderTimerState(data.timer);
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(updateTimerStatus, 1000);
+    } else {
+      toast('❌ Kon timer niet starten');
+    }
+  });
+
+  $('btnPauseTimer')?.addEventListener('click', async () => {
+    const isPaused = $('btnPauseTimer').textContent.includes('Hervatten');
+    const action = isPaused ? 'resume' : 'pause';
+    const { ok, data } = await api('/api/hacker-timer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (ok && data) {
+      toast(isPaused ? '▶️ Timer hervat!' : '⏸️ Timer gepauzeerd!');
+      renderTimerState(data.timer);
+    }
+  });
+
+  $('btnStopTimer')?.addEventListener('click', async () => {
+    const { ok, data } = await api('/api/hacker-timer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'stop' })
+    });
+    if (ok && data) {
+      toast('⏹️ Timer gestopt');
+      renderTimerState(data.timer);
+    }
+  });
+
+  document.querySelectorAll('.timer-quick').forEach(b => {
+    b.addEventListener('click', () => {
+      $('timerMinutes').value = b.dataset.min;
+      $('timerSeconds').value = b.dataset.sec;
+      $('btnStartTimer').click();
+    });
+  });
+
+  updateTimerStatus();
+  setInterval(updateTimerStatus, 3000);
 
   // ---------- stem beluisteren ----------
   let testCtx=null;

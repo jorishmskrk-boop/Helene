@@ -199,7 +199,7 @@
 
   function parseTextWithPauses(text) {
     const segments = [];
-    const regex = /\[\s*(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\s*\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+    const regex = /\[\s*(?:stilte|pauze|pause)(?:\s*[:\s]\s*([\d\.]+\s*(?:ms|s|sec|seconde|seconden)?))?\s*\]|\(\s*(?:stilte|pauze|pause)(?:\s*[:\s]\s*([\d\.]+\s*(?:ms|s|sec|seconde|seconden)?))?\s*\)|<break\s+time=["']([\d\.]+\s*(?:ms|s|sec|seconde|seconden)?)["']\s*\/?>/gi;
     let lastIndex = 0;
     let match;
 
@@ -207,13 +207,13 @@
       const preText = text.substring(lastIndex, match.index).trim();
       if (preText) segments.push({ type: "text", text: preText });
 
-      const durationStr = (match[1] || match[2] || "1s").toLowerCase();
+      const durationStr = (match[1] || match[2] || match[3] || "1s").toLowerCase().trim();
       let ms = 1000;
-      if (durationStr.endsWith("ms")) ms = parseFloat(durationStr.replace("ms", ""));
-      else if (durationStr.endsWith("s")) ms = parseFloat(durationStr.replace("s", "")) * 1000;
+      if (durationStr.endsWith("ms")) ms = parseFloat(durationStr.replace("ms", "").trim());
+      else if (durationStr.includes("sec") || durationStr.endsWith("s")) ms = parseFloat(durationStr.replace(/(?:seconden|seconde|sec|s)/g, "").trim()) * 1000;
       else ms = (parseFloat(durationStr) || 1) * 1000;
 
-      segments.push({ type: "pause", durationMs: Math.max(100, Math.min(10000, ms)) });
+      segments.push({ type: "pause", durationMs: Math.max(100, Math.min(10000, isNaN(ms) ? 1000 : ms)) });
       lastIndex = regex.lastIndex;
     }
 

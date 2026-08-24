@@ -234,8 +234,8 @@ async function generateGeminiTTSAudio(text: string, settings: any): Promise<stri
 }
 
 async function generateTTSAudio(text: string, settings: any, isSpooky: boolean = false): Promise<string | null> {
-  // Strip pauze-markeringen ([stilte: 2s]) uit de spraaktekst voor de TTS API's
-  const cleanText = (text || "").replace(/\s*\[\s*(?:stilte|pauze|pause)[^\]]*\]\s*|<break[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
+  // Strip pauze-markeringen ([stilte: 2s], (pauze: 1s), <break time="2s"/>) uit de spraaktekst voor de TTS API's
+  const cleanText = (text || "").replace(/\s*\[\s*(?:stilte|pauze|pause)[^\]]*\]\s*|\s*\(\s*(?:stilte|pauze|pause)[^\)]*\)\s*|<break[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
   if (!cleanText) return null;
 
   const effectiveSettings = { ...settings };
@@ -551,6 +551,38 @@ async function hydrateFromRedis(): Promise<void> {
 // Register van verbonden scherm-clients (index.html) voor broadcast van mededelingen
 const displayClients = new Set<WebSocket>();
 
+// Digitale Hacker Timer Server Status
+interface HackerTimerState {
+  active: boolean;
+  paused: boolean;
+  totalSeconds: number;
+  remainingSeconds: number;
+  endTime: number;
+  startedAt: number;
+}
+
+const hackerTimerState: HackerTimerState = {
+  active: false,
+  paused: false,
+  totalSeconds: 0,
+  remainingSeconds: 0,
+  endTime: 0,
+  startedAt: 0,
+};
+
+function getHackerTimerState() {
+  if (!hackerTimerState.active) {
+    return { ...hackerTimerState, remainingSeconds: 0 };
+  }
+  if (hackerTimerState.paused) {
+    return { ...hackerTimerState };
+  }
+  const now = Date.now();
+  const rem = Math.max(0, Math.ceil((hackerTimerState.endTime - now) / 1000));
+  hackerTimerState.remainingSeconds = rem;
+  return { ...hackerTimerState };
+}
+
 interface ClientSession {
   id: string;
   ws: WebSocket;
@@ -622,10 +654,10 @@ interface SpeechSegment {
   durationMs?: number;
 }
 
-// Splitst tekst op pauze-markeringen zoals [stilte: 2s], [pauze: 1.5], [stilte], <break time="2s"/>, etc.
+// Splitst tekst op pauze-markeringen zoals [stilte: 2s], [pauze: 1.5], [stilte: 2 sec], (pauze: 1s), <break time="2s"/>, etc.
 function parseTextWithPauses(text: string): SpeechSegment[] {
   const segments: SpeechSegment[] = [];
-  const regex = /\[\s*(?:stilte|pauze|pause)(?:\s*:\s*([\d\.]+(?:s|ms)?))?\s*\]|<break\s+time=["']([\d\.]+(?:s|ms)?)["']\s*\/?>/gi;
+  const regex = /\[\s*(?:stilte|pauze|pause)(?:\s*[:\s]\s*([\d\.]+\s*(?:ms|s|sec|seconde|seconden)?))?\s*\]|\(\s*(?:stilte|pauze|pause)(?:\s*[:\s]\s*([\d\.]+\s*(?:ms|s|sec|seconde|seconden)?))?\s*\)|<break\s+time=["']([\d\.]+\s*(?:ms|s|sec|seconde|seconden)?)["']\s*\/?>/gi;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -636,18 +668,18 @@ function parseTextWithPauses(text: string): SpeechSegment[] {
       segments.push({ type: "text", text: preText });
     }
 
-    const durationStr = (match[1] || match[2] || "1s").toLowerCase();
+    const durationStr = (match[1] || match[2] || match[3] || "1s").toLowerCase().trim();
     let ms = 1000;
     if (durationStr.endsWith("ms")) {
-      ms = parseFloat(durationStr.replace("ms", ""));
-    } else if (durationStr.endsWith("s")) {
-      ms = parseFloat(durationStr.replace("s", "")) * 1000;
+      ms = parseFloat(durationStr.replace("ms", "").trim());
+    } else if (durationStr.includes("sec") || durationStr.endsWith("s")) {
+      ms = parseFloat(durationStr.replace(/(?:seconden|seconde|sec|s)/g, "").trim()) * 1000;
     } else {
       const val = parseFloat(durationStr);
       ms = isNaN(val) ? 1000 : val * 1000;
     }
 
-    ms = Math.max(100, Math.min(10000, ms));
+    ms = Math.max(100, Math.min(10000, isNaN(ms) ? 1000 : ms));
     segments.push({ type: "pause", durationMs: ms });
 
     lastIndex = regex.lastIndex;
@@ -672,7 +704,7 @@ async function speakToDisplays(text: string, forceSpooky: boolean = false): Prom
   const isSpooky = forceSpooky || settings.spookyVoiceMode === true;
 
   // Maak de ondertitel schoon van [stilte: ...] tags
-  const cleanSubtitleText = text.replace(/\s*\[\s*(?:stilte|pauze|pause)[^\]]*\]\s*|<break[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
+  const cleanSubtitleText = text.replace(/\s*\[\s*(?:stilte|pauze|pause)[^\]]*\]\s*|\s*\(\s*(?:stilte|pauze|pause)[^\)]*\)\s*|<break[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
 
   const displays = broadcastToDisplays({ type: "interrupted" });
   broadcastToDisplays({ type: "subtitle", text: cleanSubtitleText });
@@ -892,6 +924,59 @@ app.post("/api/hacker-screen", (req, res) => {
     res.json({ status: "ok", count });
   } catch (err: any) {
     res.status(500).json({ status: "error", message: err?.message || "Fout bij versturen hackerscherm commando." });
+  }
+});
+
+// Endpoints voor de Digitale Hacker Timer
+app.get("/api/hacker-timer", (req, res) => {
+  res.json({ status: "ok", timer: getHackerTimerState() });
+});
+
+app.post("/api/hacker-timer", (req, res) => {
+  try {
+    const { action, minutes, seconds } = req.body || {};
+    const now = Date.now();
+
+    if (action === "start") {
+      const min = Math.max(0, parseInt(minutes || 0, 10));
+      const sec = Math.max(0, parseInt(seconds || 0, 10));
+      const totalSec = min * 60 + sec;
+      if (totalSec <= 0) {
+        return res.status(400).json({ status: "error", message: "Stel een geldige tijd in (minstens 1 seconde)." });
+      }
+      hackerTimerState.active = true;
+      hackerTimerState.paused = false;
+      hackerTimerState.totalSeconds = totalSec;
+      hackerTimerState.remainingSeconds = totalSec;
+      hackerTimerState.startedAt = now;
+      hackerTimerState.endTime = now + totalSec * 1000;
+      addLog("system", `⏱️ Hacker timer gestart (${min}m ${sec}s)`, `Totaal: ${totalSec}s`);
+    } else if (action === "pause") {
+      if (hackerTimerState.active && !hackerTimerState.paused) {
+        hackerTimerState.remainingSeconds = Math.max(0, Math.ceil((hackerTimerState.endTime - now) / 1000));
+        hackerTimerState.paused = true;
+        addLog("system", "⏸️ Hacker timer gepauzeerd", `Resterend: ${hackerTimerState.remainingSeconds}s`);
+      }
+    } else if (action === "resume") {
+      if (hackerTimerState.active && hackerTimerState.paused) {
+        hackerTimerState.paused = false;
+        hackerTimerState.endTime = now + hackerTimerState.remainingSeconds * 1000;
+        addLog("system", "▶️ Hacker timer hervat", `Resterend: ${hackerTimerState.remainingSeconds}s`);
+      }
+    } else if (action === "stop") {
+      hackerTimerState.active = false;
+      hackerTimerState.paused = false;
+      hackerTimerState.remainingSeconds = 0;
+      addLog("system", "⏹️ Hacker timer gestopt");
+    } else {
+      return res.status(400).json({ status: "error", message: "Ongeldige actie." });
+    }
+
+    const state = getHackerTimerState();
+    const count = broadcastToDisplays({ type: "hacker_timer_update", timer: state, action });
+    res.json({ status: "ok", count, timer: state });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", message: err?.message || "Fout bij verwerken timer commando." });
   }
 });
 
@@ -1271,16 +1356,27 @@ wss.on("connection", (clientWs, request: any) => {
               const currentSettings = getSettings();
               const ttsEngine = currentSettings.ttsEngine || "gemini";
               console.log(`[SERVER] Spraak genereren voor: "${chunkToSpeak}" (Engine: ${ttsEngine}, Spooky: ${currentTurnIsSpooky})`);
-              const audioBase64 = await generateTTSAudio(chunkToSpeak, currentSettings, currentTurnIsSpooky);
-              if (audioBase64 && clientWs.readyState === WebSocket.OPEN && !activeTurnController?.signal.aborted) {
-                audioBytesReceived += Math.round((audioBase64.length * 3) / 4);
-                clientWs.send(
-                  JSON.stringify({
-                    type: "audio",
-                    data: audioBase64,
-                    isSpooky: currentTurnIsSpooky,
-                  })
-                );
+              const segments = parseTextWithPauses(chunkToSpeak);
+              for (const seg of segments) {
+                if (activeTurnController?.signal.aborted) break;
+                if (seg.type === "text" && seg.text) {
+                  const audioBase64 = await generateTTSAudio(seg.text, currentSettings, currentTurnIsSpooky);
+                  if (audioBase64 && clientWs.readyState === WebSocket.OPEN && !activeTurnController?.signal.aborted) {
+                    audioBytesReceived += Math.round((audioBase64.length * 3) / 4);
+                    clientWs.send(
+                      JSON.stringify({
+                        type: "audio",
+                        data: audioBase64,
+                        isSpooky: currentTurnIsSpooky,
+                      })
+                    );
+                  }
+                } else if (seg.type === "pause" && seg.durationMs) {
+                  if (clientWs.readyState === WebSocket.OPEN && !activeTurnController?.signal.aborted) {
+                    clientWs.send(JSON.stringify({ type: "pause", durationMs: seg.durationMs }));
+                    await new Promise((resolve) => setTimeout(resolve, seg.durationMs));
+                  }
+                }
               }
             }
           }
@@ -1762,6 +1858,9 @@ wss.on("connection", (clientWs, request: any) => {
 
         if (clientWs.readyState === WebSocket.OPEN) {
           clientWs.send(JSON.stringify({ type: "session_started", isMaster: currentSession.isMaster }));
+          if (hackerTimerState.active) {
+            clientWs.send(JSON.stringify({ type: "hacker_timer_update", timer: getHackerTimerState() }));
+          }
         }
       }
 

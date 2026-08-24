@@ -452,6 +452,7 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
         resetIdleTimer();
       } else if (msg.type === "pause") {
         const pauseSec = (msg.durationMs || 1000) / 1000;
+        ensureAudioUnlocked();
         if (outputAudioCtx) {
           const currentTime = outputAudioCtx.currentTime;
           if (nextStartTime < currentTime) {
@@ -504,6 +505,9 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
           vid.pause();
           vid.style.display = "none";
         }
+      } else if (msg.type === "hacker_timer_update") {
+        log(`⏱️ Hacker timer update ontvangen: action=${msg.action || "sync"}`);
+        updateHackerTimerUI(msg.timer);
       } else if (msg.type === "photo_scanned") {
         log(`📸 Foto scan ontvangen for ${msg.groupName}: ${msg.status}`);
         handlePhotoScanned(msg);
@@ -516,6 +520,93 @@ function connectWebSocket(autoStartRecordAfterConnect = false) {
       log(`Fout bij verwerken WebSocket bericht: ${err}`);
     }
   };
+
+// ============================================================================
+// DIGITALE HACKER TIMER LOGICA & GELUID
+// ============================================================================
+let hackerTimerInterval = null;
+
+function updateHackerTimerUI(timerState) {
+  const overlay = document.getElementById("hackerTimerOverlay");
+  const display = document.getElementById("hackerTimerDisplay");
+  const sub = document.getElementById("hackerTimerSub");
+
+  if (!overlay || !display || !sub) return;
+
+  if (!timerState || !timerState.active) {
+    overlay.classList.remove("active", "paused", "finished");
+    if (hackerTimerInterval) {
+      clearInterval(hackerTimerInterval);
+      hackerTimerInterval = null;
+    }
+    return;
+  }
+
+  overlay.classList.add("active");
+
+  const updateDisplay = () => {
+    let remSec = timerState.remainingSeconds;
+    if (!timerState.paused && timerState.endTime) {
+      const now = Date.now();
+      remSec = Math.max(0, Math.ceil((timerState.endTime - now) / 1000));
+    }
+
+    const mins = Math.floor(remSec / 60);
+    const secs = remSec % 60;
+    const formatted = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    display.textContent = formatted;
+
+    if (remSec === 0) {
+      overlay.classList.remove("paused");
+      overlay.classList.add("finished");
+      sub.textContent = "TIJD IS OM!";
+      if (hackerTimerInterval) {
+        clearInterval(hackerTimerInterval);
+        hackerTimerInterval = null;
+      }
+      playHackerTimerAlarmSound();
+    } else if (timerState.paused) {
+      overlay.classList.remove("finished");
+      overlay.classList.add("paused");
+      sub.textContent = "GEPAUZEERD";
+    } else {
+      overlay.classList.remove("paused", "finished");
+      sub.textContent = "COUNTDOWN";
+    }
+  };
+
+  updateDisplay();
+
+  if (hackerTimerInterval) clearInterval(hackerTimerInterval);
+
+  if (!timerState.paused && timerState.remainingSeconds > 0) {
+    hackerTimerInterval = setInterval(updateDisplay, 500);
+  }
+}
+
+function playHackerTimerAlarmSound() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+    const now = audioCtx.currentTime;
+    for (let i = 0; i < 4; i++) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(880, now + i * 0.25);
+      osc.frequency.exponentialRampToValueAtTime(440, now + i * 0.25 + 0.18);
+      gain.gain.setValueAtTime(0.3, now + i * 0.25);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.25 + 0.2);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + i * 0.25);
+      osc.stop(now + i * 0.25 + 0.2);
+    }
+  } catch (e) {
+    console.warn("Kon timer alarm geluid niet afspelen:", e);
+  }
+}
 
   ws.onerror = () => {
     log("WebSocket fout opgetreden.");

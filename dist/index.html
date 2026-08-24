@@ -826,11 +826,87 @@
         20% { transform: scale(1.08) translate(-5px, 3px); }
         50% { transform: scale(0.95) translate(5px, -3px); }
       }
+
+      /* Simpele Retro Hacker Timer Overlay */
+      #hackerTimerOverlay {
+        display: none;
+        position: fixed;
+        top: 6vh;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9900;
+        pointer-events: none;
+      }
+      #hackerTimerOverlay.active {
+        display: flex;
+      }
+      .hacker-timer-box {
+        background: rgba(6, 8, 14, 0.92);
+        border: 2px solid #00ff66;
+        border-radius: 12px;
+        padding: 16px 36px;
+        box-shadow: 0 0 25px rgba(0, 255, 102, 0.35), inset 0 0 15px rgba(0, 255, 102, 0.15);
+        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+        text-align: center;
+        backdrop-filter: blur(8px);
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+      #hackerTimerDisplay {
+        font-size: clamp(3.5rem, 7vw, 7rem);
+        font-weight: 900;
+        color: #00ff66;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 20px rgba(0, 255, 102, 0.8), 0 0 40px rgba(0, 255, 102, 0.4);
+        line-height: 1;
+      }
+      #hackerTimerSub {
+        font-size: clamp(0.9rem, 1.4vw, 1.4rem);
+        font-weight: 700;
+        color: #00f0ff;
+        letter-spacing: 0.25em;
+        margin-top: 6px;
+        text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+        text-transform: uppercase;
+      }
+      #hackerTimerOverlay.paused .hacker-timer-box {
+        border-color: #f39c12;
+        box-shadow: 0 0 25px rgba(243, 156, 18, 0.4);
+      }
+      #hackerTimerOverlay.paused #hackerTimerDisplay {
+        color: #f39c12;
+        text-shadow: 0 0 20px rgba(243, 156, 18, 0.8);
+      }
+      #hackerTimerOverlay.paused #hackerTimerSub {
+        color: #f1c40f;
+      }
+      #hackerTimerOverlay.finished .hacker-timer-box {
+        border-color: #ef4444;
+        box-shadow: 0 0 35px rgba(239, 68, 68, 0.7);
+        animation: timerFinishPulse 0.4s infinite ease-in-out alternate;
+      }
+      #hackerTimerOverlay.finished #hackerTimerDisplay {
+        color: #ef4444;
+        text-shadow: 0 0 25px rgba(239, 68, 68, 0.9);
+      }
+      #hackerTimerOverlay.finished #hackerTimerSub {
+        color: #f87171;
+      }
+      @keyframes timerFinishPulse {
+        0% { transform: scale(1); }
+        100% { transform: scale(1.05); }
+      }
     </style>
-    <script type="module" crossorigin src="/assets/main-DlIkOZoa.js"></script>
+    <script type="module" crossorigin src="/assets/main-8m1JGSsN.js"></script>
   </head>
   <body>
     <div id="mainContainer">
+      <!-- Simpele Retro Hacker Timer Overlay -->
+      <div id="hackerTimerOverlay">
+        <div class="hacker-timer-box">
+          <div id="hackerTimerDisplay">00:00</div>
+          <div id="hackerTimerSub">COUNTDOWN</div>
+        </div>
+      </div>
       <!-- Fullscreen Hackerscherm Video Overlay (alleen te stoppen vanuit beheer of na afspelen) -->
       <video id="hackerVideoOverlay" src="/assets/Hackerscreen-DxkzxFzq.mp4" playsinline style="display:none; position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; z-index:9999; background:#000; pointer-events:none;"></video>
       <!-- Verbindingsindicator rechtsboven op de TV -->
