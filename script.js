@@ -846,16 +846,16 @@ async function playAudioChunk(base64Data) {
     let subSource = null;
 
     if (isCurrentTurnSpooky) {
-      // Donkere, boze hoofdstem met verlaagde pitch
-      source.playbackRate.value = 0.86;
+      // 1. Donkere, boze hoofdstem
+      source.playbackRate.value = 0.88;
 
-      // Diepe dreigende schaduwstem op de achtergrond
+      // 2. Diepe dreigende schaduwstem op de achtergrond
       subSource = outputAudioCtx.createBufferSource();
       subSource.buffer = buffer;
       subSource.playbackRate.value = 0.68;
 
       const subGain = outputAudioCtx.createGain();
-      subGain.gain.value = 0.28;
+      subGain.gain.value = 0.35;
 
       // Lowshelf filter voor een zware, boze bas-rumble
       const biquad = outputAudioCtx.createBiquadFilter();
@@ -865,8 +865,27 @@ async function playAudioChunk(base64Data) {
 
       subSource.connect(biquad);
       biquad.connect(subGain);
-      subGain.connect(outputAnalyser);
+
+      // 3. Griezelige Echo / Delay netwerk
+      const delay = outputAudioCtx.createDelay();
+      delay.delayTime.value = 0.28; // 280ms echo vertraging
+
+      const echoFeedback = outputAudioCtx.createGain();
+      echoFeedback.gain.value = 0.40; // Echo feedback stering
+
+      const echoGain = outputAudioCtx.createGain();
+      echoGain.gain.value = 0.35; // Volume van de echo-tail
+
+      delay.connect(echoFeedback);
+      echoFeedback.connect(delay);
+      delay.connect(echoGain);
+      echoGain.connect(outputAnalyser);
+
+      source.connect(delay);
+      subGain.connect(delay);
+
       source.connect(outputAnalyser);
+      subGain.connect(outputAnalyser);
 
       const eyeContainer = document.getElementById("scoutEyesContainer");
       if (eyeContainer) eyeContainer.classList.add("spooky");

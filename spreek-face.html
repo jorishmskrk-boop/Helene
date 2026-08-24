@@ -254,15 +254,55 @@
             for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
             const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
+
+            // 1. Donkere hoofdstem
             const src = audioCtx.createBufferSource();
             src.buffer = audioBuffer;
+            src.playbackRate.value = 0.88;
+
+            // 2. Diepe demonische schaduwstem
+            const subSrc = audioCtx.createBufferSource();
+            subSrc.buffer = audioBuffer;
+            subSrc.playbackRate.value = 0.68;
+
+            const subGain = audioCtx.createGain();
+            subGain.gain.value = 0.35;
+
+            // Lowshelf filter voor een zware bas-rumble
+            const biquad = audioCtx.createBiquadFilter();
+            biquad.type = "lowshelf";
+            biquad.frequency.value = 350;
+            biquad.gain.value = 10;
+
+            subSrc.connect(biquad);
+            biquad.connect(subGain);
+
+            // 3. Spookachtige Echo / Delay netwerk
+            const delay = audioCtx.createDelay();
+            delay.delayTime.value = 0.28; // 280ms echo vertraging
+
+            const echoFeedback = audioCtx.createGain();
+            echoFeedback.gain.value = 0.40; // Echo feedback stering
+
+            const echoGain = audioCtx.createGain();
+            echoGain.gain.value = 0.35; // Volume van de echo-tail
+
+            delay.connect(echoFeedback);
+            echoFeedback.connect(delay);
+            delay.connect(echoGain);
+            echoGain.connect(outputAnalyser);
+
+            src.connect(delay);
+            subGain.connect(delay);
 
             src.connect(outputAnalyser);
+            subGain.connect(outputAnalyser);
             outputAnalyser.connect(audioCtx.destination);
 
             await new Promise((resolve) => {
               src.onended = resolve;
               src.start(0);
+              subSrc.start(0);
             });
           }
         } else if (seg.type === "pause" && seg.durationMs) {
